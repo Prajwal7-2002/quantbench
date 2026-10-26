@@ -1,4 +1,4 @@
-"""First-principles quantization primitives and algorithms."""
+"""First-principles quantization primitives, algorithms, and bit-packing runtimes."""
 
 from quantbench.quant.affine import (
     dequantize_absmax,
@@ -8,6 +8,16 @@ from quantbench.quant.affine import (
 )
 from quantbench.quant.blockwise import dequantize_blockwise, quantize_blockwise
 from quantbench.quant.fp8 import FP8Format, dequantize_fp8, quantize_fp8
+from quantbench.quant.packing import (
+    decompress_2_4,
+    pack_2_4_indices,
+    pack_int4,
+    pack_ternary,
+    prune_and_compress_2_4,
+    unpack_2_4_indices,
+    unpack_int4,
+    unpack_ternary,
+)
 
 __all__ = [
     "quantize_affine",
@@ -19,4 +29,12 @@ __all__ = [
     "quantize_fp8",
     "dequantize_fp8",
     "FP8Format",
+    "pack_int4",
+    "unpack_int4",
+    "pack_ternary",
+    "unpack_ternary",
+    "pack_2_4_indices",
+    "unpack_2_4_indices",
+    "prune_and_compress_2_4",
+    "decompress_2_4",
 ]

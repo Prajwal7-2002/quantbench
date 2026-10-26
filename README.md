@@ -66,6 +66,12 @@ Partitions weights into blocks of size $G \in \{32, 64, 128\}$ to isolate channe
 ### 4. OCP FP8 Emulation
 Bit-exact simulation of **E4M3FN** (higher mantissa precision, range $\pm 448$, no infinity) for GEMM weights/activations and **E5M2** (wider dynamic range $\pm 57344$) for gradients and KV caches.
 
+### 5. Sub-Byte Bit-Packing & 2:4 Sparsity
+Because hardware cannot address sub-byte boundaries, weights are packed into vectorized `uint8` containers:
+* **INT4**: Two 4-bit nibbles packed per byte: `(v0 & 0x0F) | ((v1 & 0x0F) << 4)` ($4\times$ memory compression vs FP16).
+* **BitNet Ternary**: Four $\{-1, 0, 1\}$ weights per byte using offset binary mapping ($8\times$ compression vs FP16).
+* **2:4 Structured Sparsity**: Two non-zero values retained per 4-element block ($50\%$ storage) with 2-bit column positions packed into 4-bit metadata nibbles for Ampere/Ada/Hopper Sparse Tensor Cores ($2\times$ TFLOPS).
+
 ---
 
 ## 🚀 Quickstart
@@ -78,7 +84,12 @@ git clone https://github.com/Prajwal7-2002/quantbench.git
 cd quantbench
 uv sync
 
-# Run the complete test suite
+# Inspect sub-byte bit layouts and theoretical memory compression
+uv run quantbench pack-inspect --format int4
+uv run quantbench pack-inspect --format ternary
+uv run quantbench pack-inspect --format sparse24
+
+# Run the complete test suite (22 tests, 93% coverage)
 uv run pytest
 ```
 
@@ -87,7 +98,7 @@ uv run pytest
 ## 🗺️ Roadmap & Staged Milestones
 
 - [x] **Phase 1: Mathematical Primitives & Invariants**: Affine, AbsMax, Group-wise, and FP8 (E4M3/E5M2) simulation with rigorous error bound verification.
-- [ ] **Phase 2: Integer Bit-Packing Runtimes**: Vectorized INT4 nibble packing (`uint8`), BitNet ternary packing, and 2:4 sparsity metadata.
+- [x] **Phase 2: Integer Bit-Packing Runtimes**: Vectorized INT4 nibble packing (`uint8`), BitNet ternary packing, and 2:4 sparsity metadata.
 - [ ] **Phase 3: Advanced Optimization Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
 - [ ] **Phase 4: Drop-in Neural Layers**: `QuantLinear` PyTorch module, in-place Hugging Face model converter, and layer SQNR diagnostics.
 - [ ] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
