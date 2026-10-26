@@ -2,6 +2,8 @@
 
 __version__ = "0.1.0"
 
+from quantbench.nn.model_convert import convert_model_to_quant
+from quantbench.nn.quant_linear import QuantLinear
 from quantbench.quant.affine import (
     dequantize_absmax,
     dequantize_affine,
@@ -23,6 +25,8 @@ from quantbench.quant.packing import (
 
 __all__ = [
     "__version__",
+    "QuantLinear",
+    "convert_model_to_quant",
     "quantize_affine",
     "dequantize_affine",
     "quantize_absmax",
