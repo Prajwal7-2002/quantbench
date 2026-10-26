@@ -21,3 +21,19 @@
 - Added CLI command `pack-inspect` to visualize sub-byte bit layouts and theoretical memory compression directly from the terminal.
 - 22/22 unit tests passing with 93% test coverage in 2.18s. All Ruff checks passing.
 
+## 2026-10-26: Phase 3 — Drop-in Neural Layers (`QuantLinear`) & Model Conversion
+
+- Created `QuantLinear` (`quantbench.nn.quant_linear`):
+  - A drop-in replacement for `torch.nn.Linear` storing compressed integer weights inside persistent buffers (`self.register_buffer("packed_weight", ...)`).
+  - Supports INT4 (groupwise and per-channel), INT8, BitNet Ternary, and 2:4 Structured Sparsity.
+  - Implements dynamic vector dequantization in `forward(x)`.
+  - Overrides `_load_from_state_dict` to dynamically bind serialized buffer tensors during checkpoint restoration.
+  - Computes exact layer parameter memory bytes and compression factor relative to FP16.
+- Created `convert_model_to_quant` (`quantbench.nn.model_convert`):
+  - In-place recursive model converter traversing PyTorch module trees.
+  - Swaps targeted linear layers (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) while cleanly preserving sensitive layers (`lm_head`).
+  - Reports layer conversion counts, memory reduction statistics, and elapsed conversion duration.
+- Added comprehensive unit tests in `tests/test_quant_linear.py`:
+  - 31/31 unit tests passing across entire repo with 93% coverage in 2.27s. All Ruff checks passing.
+
+

@@ -89,8 +89,36 @@ uv run quantbench pack-inspect --format int4
 uv run quantbench pack-inspect --format ternary
 uv run quantbench pack-inspect --format sparse24
 
-# Run the complete test suite (22 tests, 93% coverage)
+```bash
+# Run the complete test suite (31 tests, 93% coverage)
 uv run pytest
+```
+
+### Python API Quickstart
+
+```python
+import torch
+import torch.nn as nn
+from quantbench import QuantLinear, convert_model_to_quant
+
+# 1. Convert any standalone nn.Linear to INT4 QuantLinear
+linear = nn.Linear(4096, 4096)
+quant_linear = QuantLinear.from_linear(linear, scheme="int4", group_size=64)
+
+x = torch.randn(2, 4096)
+y = quant_linear(x)  # Dynamic vectorized dequantization forward
+stats = quant_linear.memory_footprint_bytes()
+print(f"Compression: {stats['compression_ratio']:.2f}x ({stats['fp16_bytes']} -> {stats['compressed_bytes']} bytes)")
+
+# 2. In-place recursive transformer conversion
+model = MyTransformer()
+converted_model, stats = convert_model_to_quant(
+    model,
+    scheme="int4",
+    group_size=64,
+    exclude_modules=["lm_head"],
+)
+print(f"Compressed {stats['converted_layers']} layers: {stats['orig_memory_mb']} MB -> {stats['quant_memory_mb']} MB ({stats['compression_ratio']}x)")
 ```
 
 ---
@@ -99,8 +127,8 @@ uv run pytest
 
 - [x] **Phase 1: Mathematical Primitives & Invariants**: Affine, AbsMax, Group-wise, and FP8 (E4M3/E5M2) simulation with rigorous error bound verification.
 - [x] **Phase 2: Integer Bit-Packing Runtimes**: Vectorized INT4 nibble packing (`uint8`), BitNet ternary packing, and 2:4 sparsity metadata.
-- [ ] **Phase 3: Advanced Optimization Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
-- [ ] **Phase 4: Drop-in Neural Layers**: `QuantLinear` PyTorch module, in-place Hugging Face model converter, and layer SQNR diagnostics.
+- [x] **Phase 3: Drop-in Neural Layers**: `QuantLinear` PyTorch module, in-place Hugging Face model converter, and buffer serialization.
+- [ ] **Phase 4: Advanced Optimization Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
 - [ ] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
 - [ ] **Phase 6: servebench Bridge & Pareto Visualizer**: Empirical throughput (tok/s) profiling and terminal ASCII Pareto curves.
 - [ ] **Phase 7: Public Learning Guide & Packaging**: Comprehensive educational walkthrough and PyPI release.
