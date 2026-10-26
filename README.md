@@ -74,23 +74,49 @@ Because hardware cannot address sub-byte boundaries, weights are packed into vec
 
 ---
 
-## 🚀 Quickstart
+---
 
-Dependencies are managed via [uv](https://docs.astral.sh/uv/):
+## 📦 Installation
+
+Install `quantbench` directly from PyPI:
 
 ```bash
-# Clone and sync environment
+pip install quantbench
+```
+
+Or using [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add quantbench
+```
+
+To install from source for development:
+
+```bash
 git clone https://github.com/Prajwal7-2002/quantbench.git
 cd quantbench
 uv sync
+```
 
+---
+
+## 🚀 Quickstart
+
+### Sub-Byte Packing Inspection
+
+Inspect how weights are packed into vectorized byte streams and calculate theoretical compression:
+
+```bash
 # Inspect sub-byte bit layouts and theoretical memory compression
 uv run quantbench pack-inspect --format int4
 uv run quantbench pack-inspect --format ternary
 uv run quantbench pack-inspect --format sparse24
+```
+
+### Running the Test Suite
 
 ```bash
-# Run the complete test suite (31 tests, 93% coverage)
+# Run the complete test suite (47 tests, 95% coverage)
 uv run pytest
 ```
 
@@ -108,7 +134,10 @@ quant_linear = QuantLinear.from_linear(linear, scheme="int4", group_size=64)
 x = torch.randn(2, 4096)
 y = quant_linear(x)  # Dynamic vectorized dequantization forward
 stats = quant_linear.memory_footprint_bytes()
-print(f"Compression: {stats['compression_ratio']:.2f}x ({stats['fp16_bytes']} -> {stats['compressed_bytes']} bytes)")
+print(
+    f"Compression: {stats['compression_ratio']:.2f}x "
+    f"({stats['fp16_bytes']} -> {stats['compressed_bytes']} bytes)"
+)
 
 # 2. In-place recursive transformer conversion
 model = MyTransformer()
@@ -118,7 +147,11 @@ converted_model, stats = convert_model_to_quant(
     group_size=64,
     exclude_modules=["lm_head"],
 )
-print(f"Compressed {stats['converted_layers']} layers: {stats['orig_memory_mb']} MB -> {stats['quant_memory_mb']} MB ({stats['compression_ratio']}x)")
+print(
+    f"Compressed {stats['converted_layers']} layers: "
+    f"{stats['orig_memory_mb']} MB -> {stats['quant_memory_mb']} MB "
+    f"({stats['compression_ratio']}x)"
+)
 
 # 3. Advanced Calibration Algorithms (SmoothQuant, AWQ, GPTQ)
 from quantbench import (
@@ -138,7 +171,10 @@ w_smoothed, scale = smooth_linear_weights(linear.weight, act_scales, alpha=0.5)
 act_means = compute_activation_channel_means(calibration_x)
 best_scale, best_alpha = search_best_awq_scale(linear.weight, act_means, calibration_x)
 
-# GPTQ: Second-order Hessian error compensation
+# GPTQ: Second-order Hessian error compensation with Cholesky damping
+h = compute_activation_hessian(calibration_x, in_features=4096)
+w_gptq = gptq_quantize_weights(linear.weight, h, bits=4, block_size=32, damping_factor=0.01)
+
 # 4. Pareto Quality-vs-Compression Benchmark
 from quantbench import ParetoBenchmark, generate_synthetic_corpus
 
@@ -156,6 +192,22 @@ uv run quantbench eval --shape 1024x1024
 
 # Run automated Pareto sweep across all precision runtimes
 uv run quantbench pareto --vocab-size 128 --hidden-dim 128 --seq-len 300
+```
+
+---
+
+## 🔬 Executable Examples & Roofline Integration
+
+The repository includes runnable end-to-end scripts demonstrating drop-in inference, advanced calibration, and hardware roofline modeling (integrating with `servebench`):
+
+* **[examples/01_quant_linear_inference.py](examples/01_quant_linear_inference.py)**: Demonstrates converting PyTorch `nn.Linear` layers into INT4 blockwise, BitNet 1.58b ternary, and Ampere 2:4 sparse `QuantLinear` modules, verifying forward pass execution and recursive transformer conversion with `lm_head` float exclusion.
+* **[examples/02_advanced_calibration.py](examples/02_advanced_calibration.py)**: Step-by-step demonstration of SmoothQuant outlier migration (proving exact mathematical continuous invariance), AWQ Frobenius grid search for salient channel protection, and GPTQ second-order Hessian Cholesky damping updates yielding $1.48\times$ error reduction.
+* **[examples/03_servebench_roofline_eval.py](examples/03_servebench_roofline_eval.py)**: Bridges `quantbench` drop-in layers with `servebench`'s hardware roofline model (`HARDWARE_PROFILES`, RTX 3050 192 GB/s, T4 320 GB/s), calculating arithmetic intensity $I = \frac{2}{\text{bytes\_per\_param}}$ FLOPs/byte, decode token latency, and DRAM bandwidth traffic reduction (slashing memory traffic by $73.4\%$ for INT4).
+
+```bash
+uv run python examples/01_quant_linear_inference.py
+uv run python examples/02_advanced_calibration.py
+uv run python examples/03_servebench_roofline_eval.py
 ```
 
 ---
@@ -181,6 +233,13 @@ For an exhaustive first-principles mathematical and architectural breakdown of q
 - [x] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
 - [x] **Phase 6: Pareto Benchmark & Terminal Visualizer**: Quality-vs-compression analysis and terminal Rich Pareto curves.
 - [x] **Phase 7: Public Learning Guide & Packaging**: Comprehensive educational walkthrough and PyPI release.
+- [ ] **Phase 8: Sub-Byte Fused Kernels & KV Cache Quantization**: Analytical Triton kernel emulators for mixed-precision GEMV and INT4 KV-cache compression.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions that expand educational clarity, add new calibration methods, improve numerical fidelity diagnostics, or introduce new sub-byte bit layouts! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for full development guidelines, testing protocols, and PR standards.
 
 ---
 
