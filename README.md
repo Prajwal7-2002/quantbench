@@ -160,6 +160,18 @@ uv run quantbench pareto --vocab-size 128 --hidden-dim 128 --seq-len 300
 
 ---
 
+## 📚 Educational Engineering Guide
+
+For an exhaustive first-principles mathematical and architectural breakdown of quantization, sub-byte bit packing, and hardware sparsity, read [GUIDE.md](GUIDE.md):
+* Exact mathematical proofs (Zero-Preserving Affine Invariant, Optimal Brain Surgeon update derivation).
+* IEEE 754 Banker's rounding drift analysis.
+* OCP FP8 (E4M3FN vs E5M2) analytical software emulation.
+* Bit-level packing mechanics (INT4 two's complement sign extension, BitNet biased SIMD vs Base-3, NVIDIA Ampere 2:4 metadata nibbles).
+* Second-order Hessian error compensation with Cholesky inversion and block updates.
+* Dual-metric Pareto benchmarking (Layer-level SQNR dB + Sliding-Window Perplexity).
+
+---
+
 ## 🗺️ Roadmap & Staged Milestones
 
 - [x] **Phase 1: Mathematical Primitives & Invariants**: Affine, AbsMax, Group-wise, and FP8 (E4M3/E5M2) simulation with rigorous error bound verification.
@@ -168,7 +180,7 @@ uv run quantbench pareto --vocab-size 128 --hidden-dim 128 --seq-len 300
 - [x] **Phase 4: Advanced Calibration Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
 - [x] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
 - [x] **Phase 6: Pareto Benchmark & Terminal Visualizer**: Quality-vs-compression analysis and terminal Rich Pareto curves.
-- [ ] **Phase 7: Public Learning Guide & Packaging**: Comprehensive educational walkthrough and PyPI release.
+- [x] **Phase 7: Public Learning Guide & Packaging**: Comprehensive educational walkthrough and PyPI release.
 
 ---
 
