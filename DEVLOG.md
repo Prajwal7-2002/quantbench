@@ -45,5 +45,18 @@
   - Hessian symmetry, positive semi-definiteness, and GPTQ OBS error reduction testing.
 - 39/39 unit tests passing with 93% test coverage across the repository. All Ruff checks passing.
 
+## 2026-10-26: Phase 5 & 6 — Sliding-Window Perplexity, SQNR & Pareto Benchmarking
+
+- Created `quantbench.eval`:
+  - `sqnr.py`: Implemented Signal-to-Quantization-Noise Ratio ($10 \log_{10}(P_{\text{signal}} / P_{\text{noise}})$) in decibels (dB) for layer-level numerical fidelity tracking without forward inference overhead.
+  - `perplexity.py`: Implemented statistically rigorous sliding-window causal language model evaluation engine. Strided contexts ($S < L$) eliminate context boundary collapse by evaluating loss strictly on trailing $S$ tokens.
+- Created `quantbench.bench.pareto`:
+  - `ParetoBenchmark`: Automated sweep engine mapping (Compression Ratio, Footprint MB, Delta PPL, SQNR dB) across FP16 baseline, INT8, INT4 (G=128, G=64), BitNet Ternary, and 2:4 Structured Sparsity.
+  - Formats GitHub Markdown tables and ASCII terminal scatter plots.
+- Added CLI commands `eval` and `pareto` in `quantbench.cli`.
+- Added unit tests in `tests/test_eval_and_pareto.py`:
+  - 47/47 unit tests passing across entire repo with 95% test coverage in 3.33s. All Ruff checks passing.
+
+
 
 

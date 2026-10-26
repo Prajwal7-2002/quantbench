@@ -2,6 +2,12 @@
 
 __version__ = "0.1.0"
 
+from quantbench.bench import ParetoBenchmark, ParetoPoint
+from quantbench.eval import (
+    compute_sliding_window_perplexity,
+    compute_sqnr,
+    generate_synthetic_corpus,
+)
 from quantbench.nn.model_convert import convert_model_to_quant
 from quantbench.nn.quant_linear import QuantLinear
 from quantbench.quant.affine import (
@@ -62,4 +68,9 @@ __all__ = [
     "awq_quantize_weights",
     "compute_activation_hessian",
     "gptq_quantize_weights",
+    "compute_sqnr",
+    "compute_sliding_window_perplexity",
+    "generate_synthetic_corpus",
+    "ParetoBenchmark",
+    "ParetoPoint",
 ]
