@@ -177,7 +177,7 @@ def test_fp8_analytical_emulator():
 
 
 def test_cli_runner():
-    """Verify CLI basic info and version output."""
+    """Verify CLI basic info, version, and pack-inspect outputs."""
     runner = CliRunner()
     result = runner.invoke(app, ["info"])
     assert result.exit_code == 0
@@ -186,3 +186,21 @@ def test_cli_runner():
     result_v = runner.invoke(app, ["--version"])
     assert result_v.exit_code == 0
     assert "0.1.0" in result_v.stdout
+
+    # Test pack-inspect commands
+    res_int4 = runner.invoke(app, ["pack-inspect", "--format", "int4"])
+    assert res_int4.exit_code == 0
+    assert "INT4" in res_int4.stdout
+
+    res_ternary = runner.invoke(app, ["pack-inspect", "--format", "ternary"])
+    assert res_ternary.exit_code == 0
+    assert "BitNet" in res_ternary.stdout
+
+    res_sparse = runner.invoke(app, ["pack-inspect", "--format", "sparse24"])
+    assert res_sparse.exit_code == 0
+    assert "2:4" in res_sparse.stdout
+
+    # Test invalid format
+    res_err = runner.invoke(app, ["pack-inspect", "--format", "invalid_format"])
+    assert res_err.exit_code != 0
+
