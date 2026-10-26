@@ -1,5 +1,6 @@
 # quantbench ⚖️
 
+[![PyPI](https://img.shields.io/pypi/v/quantbench-engine.svg)](https://pypi.org/project/quantbench-engine/)
 [![CI](https://github.com/Prajwal7-2002/quantbench/actions/workflows/ci.yml/badge.svg)](https://github.com/Prajwal7-2002/quantbench/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
@@ -74,20 +75,18 @@ Because hardware cannot address sub-byte boundaries, weights are packed into vec
 
 ---
 
----
-
 ## 📦 Installation
 
-Install `quantbench` directly from PyPI:
+Install `quantbench` directly from [PyPI](https://pypi.org/project/quantbench-engine/):
 
 ```bash
-pip install quantbench
+pip install quantbench-engine
 ```
 
 Or using [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv add quantbench
+uv add quantbench-engine
 ```
 
 To install from source for development:
