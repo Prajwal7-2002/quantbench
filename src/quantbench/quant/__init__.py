@@ -6,6 +6,16 @@ from quantbench.quant.affine import (
     quantize_absmax,
     quantize_affine,
 )
+from quantbench.quant.algorithms import (
+    awq_quantize_weights,
+    compute_activation_channel_means,
+    compute_activation_hessian,
+    compute_smoothquant_scale,
+    extract_activation_channel_scales,
+    gptq_quantize_weights,
+    search_best_awq_scale,
+    smooth_linear_weights,
+)
 from quantbench.quant.blockwise import dequantize_blockwise, quantize_blockwise
 from quantbench.quant.fp8 import FP8Format, dequantize_fp8, quantize_fp8
 from quantbench.quant.packing import (
@@ -37,4 +47,12 @@ __all__ = [
     "unpack_2_4_indices",
     "prune_and_compress_2_4",
     "decompress_2_4",
+    "compute_smoothquant_scale",
+    "extract_activation_channel_scales",
+    "smooth_linear_weights",
+    "compute_activation_channel_means",
+    "search_best_awq_scale",
+    "awq_quantize_weights",
+    "compute_activation_hessian",
+    "gptq_quantize_weights",
 ]
