@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "quantbench"
+name = "quantbench-engine"
 version = "0.1.0"
 description = "First-principles LLM quantization engine, bit-packing runtimes, 2:4 sparsity, and Quality-vs-Speed Pareto evaluation benchmark."
 readme = "README.md"
