@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quantbench"
+version = "0.1.0"
+description = "First-principles LLM quantization engine, bit-packing runtimes, 2:4 sparsity, and Quality-vs-Speed Pareto evaluation benchmark."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Prajwal Pujari", email = "prajwalpujari16@gmail.com" }]
+keywords = [
+    "llm",
+    "quantization",
+    "inference",
+    "awq",
+    "gptq",
+    "smoothquant",
+    "int4",
+    "int8",
+    "fp8",
+    "bitnet",
+    "sparsity",
+    "benchmark",
+    "serving",
+    "petaflop",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Benchmark",
+    "Topic :: System :: Hardware",
+]
+dependencies = [
+    "torch>=2.4.0",
+    "typer>=0.12",
+    "rich>=13",
+    "pydantic>=2.6",
+    "safetensors>=0.4.3",
+    "numpy>=1.26",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+quantbench = "quantbench.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Prajwal7-2002/quantbench"
+Documentation = "https://prajwal7-2002.github.io/quantbench/"
+Repository = "https://github.com/Prajwal7-2002/quantbench.git"
+Issues = "https://github.com/Prajwal7-2002/quantbench/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quantbench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --cov=src/quantbench --cov-report=term-missing"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I"]
+ignore = ["B008"]
