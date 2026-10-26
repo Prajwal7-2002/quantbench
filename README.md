@@ -139,8 +139,23 @@ act_means = compute_activation_channel_means(calibration_x)
 best_scale, best_alpha = search_best_awq_scale(linear.weight, act_means, calibration_x)
 
 # GPTQ: Second-order Hessian error compensation
-H = compute_activation_hessian(calibration_x, in_features=4096)
-w_gptq = gptq_quantize_weights(linear.weight, H, bits=4, group_size=128)
+# 4. Pareto Quality-vs-Compression Benchmark
+from quantbench import ParetoBenchmark, generate_synthetic_corpus
+
+tokens = generate_synthetic_corpus(vocab_size=32000, seq_length=1024)
+bench = ParetoBenchmark(model, tokens, window_size=512, stride=256)
+points = bench.run_sweep()
+print(bench.render_ascii_table(points))
+```
+
+### CLI Quickstart
+
+```bash
+# Evaluate tensor-level numerical fidelity (SQNR dB)
+uv run quantbench eval --shape 1024x1024
+
+# Run automated Pareto sweep across all precision runtimes
+uv run quantbench pareto --vocab-size 128 --hidden-dim 128 --seq-len 300
 ```
 
 ---
@@ -151,8 +166,8 @@ w_gptq = gptq_quantize_weights(linear.weight, H, bits=4, group_size=128)
 - [x] **Phase 2: Integer Bit-Packing Runtimes**: Vectorized INT4 nibble packing (`uint8`), BitNet ternary packing, and 2:4 sparsity metadata.
 - [x] **Phase 3: Drop-in Neural Layers**: `QuantLinear` PyTorch module, in-place Hugging Face model converter, and buffer serialization.
 - [x] **Phase 4: Advanced Calibration Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
-- [ ] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
-- [ ] **Phase 6: servebench Bridge & Pareto Visualizer**: Empirical throughput (tok/s) profiling and terminal ASCII Pareto curves.
+- [x] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
+- [x] **Phase 6: Pareto Benchmark & Terminal Visualizer**: Quality-vs-compression analysis and terminal Rich Pareto curves.
 - [ ] **Phase 7: Public Learning Guide & Packaging**: Comprehensive educational walkthrough and PyPI release.
 
 ---

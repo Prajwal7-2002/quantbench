@@ -162,5 +162,140 @@ def pack_inspect(
         raise typer.Exit(code=1)
 
 
+@app.command("eval")
+def eval_cmd(
+    shape: str = typer.Option("1024x1024", "--shape", help="Weight matrix shape (MxN)."),
+):
+    """Evaluate tensor-level SQNR (dB) and compression factor across quantization schemes."""
+    import torch
+
+    from quantbench.eval.sqnr import compute_sqnr
+    from quantbench.quant.affine import dequantize_absmax, quantize_absmax
+    from quantbench.quant.blockwise import dequantize_blockwise, quantize_blockwise
+
+    try:
+        m_str, n_str = shape.lower().split("x")
+        m, n = int(m_str), int(n_str)
+    except Exception:
+        console.print(
+            f"[bold red]Invalid shape '{shape}'. Expected format e.g. '1024x1024'[/bold red]"
+        )
+        raise typer.Exit(code=1) from None
+
+    torch.manual_seed(42)
+    w = torch.randn(m, n)
+
+    # 1. INT8 AbsMax
+    q8, s8 = quantize_absmax(w, num_bits=8, dim=1)
+    w8 = dequantize_absmax(q8, s8)
+    sqnr8 = compute_sqnr(w, w8)
+
+    # 2. INT4 Blockwise (G=128)
+    q4_128, s4_128, zp4_128, meta_128 = quantize_blockwise(w, group_size=128, num_bits=4)
+    w4_128 = dequantize_blockwise(q4_128, s4_128, zp4_128, meta_128)
+    sqnr4_128 = compute_sqnr(w, w4_128)
+
+    # 3. INT4 Blockwise (G=64)
+    q4_64, s4_64, zp4_64, meta_64 = quantize_blockwise(w, group_size=64, num_bits=4)
+    w4_64 = dequantize_blockwise(q4_64, s4_64, zp4_64, meta_64)
+    sqnr4_64 = compute_sqnr(w, w4_64)
+
+    table = Table(
+        title=f"Quantization Fidelity Benchmark ({m}x{n} Weight Matrix)",
+        border_style="cyan",
+    )
+    table.add_column("Scheme", style="bold yellow")
+    table.add_column("Group Size", style="cyan")
+    table.add_column("Bit-Width", style="green")
+    table.add_column("SQNR (dB)", style="bold magenta")
+    table.add_column("Compression", style="bold green")
+
+    table.add_row("FP16 Baseline", "None", "16-bit", "100.0 dB", "1.00x")
+    table.add_row("INT8 AbsMax", "Per-Channel", "8-bit", f"{sqnr8:.2f} dB", "2.00x")
+    table.add_row("INT4 Blockwise", "128", "4-bit", f"{sqnr4_128:.2f} dB", "3.55x")
+    table.add_row("INT4 Blockwise", "64", "4-bit", f"{sqnr4_64:.2f} dB", "3.20x")
+
+    console.print(table)
+
+
+@app.command("pareto")
+def pareto_cmd(
+    vocab_size: int = typer.Option(128, "--vocab-size", help="Vocabulary cardinality."),
+    hidden_dim: int = typer.Option(128, "--hidden-dim", help="Model hidden dimension."),
+    seq_len: int = typer.Option(300, "--seq-len", help="Number of calibration tokens."),
+):
+    """Run an end-to-end Pareto quality-vs-compression benchmark across all quantization schemes."""
+    import torch
+    import torch.nn as nn
+
+    from quantbench.bench.pareto import ParetoBenchmark
+    from quantbench.eval.perplexity import generate_synthetic_corpus
+
+    class DemoTransformer(nn.Module):
+        def __init__(self, vocab: int, dim: int):
+            super().__init__()
+            self.embedding = nn.Embedding(vocab, dim)
+            self.q_proj = nn.Linear(dim, dim, bias=False)
+            self.k_proj = nn.Linear(dim, dim, bias=False)
+            self.v_proj = nn.Linear(dim, dim, bias=False)
+            self.o_proj = nn.Linear(dim, dim, bias=False)
+            self.gate_proj = nn.Linear(dim, dim * 2, bias=False)
+            self.down_proj = nn.Linear(dim * 2, dim, bias=False)
+            self.lm_head = nn.Linear(dim, vocab, bias=False)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            h = self.embedding(x)
+            attn = self.o_proj(torch.relu(self.q_proj(h) + self.k_proj(h) + self.v_proj(h)))
+            mlp = self.down_proj(torch.relu(self.gate_proj(attn)))
+            return self.lm_head(mlp)
+
+    console.print(
+        f"[bold cyan]Initializing Demo Transformer[/bold cyan] "
+        f"(Vocab={vocab_size}, Dim={hidden_dim})..."
+    )
+    torch.manual_seed(42)
+    model = DemoTransformer(vocab=vocab_size, dim=hidden_dim)
+    tokens = generate_synthetic_corpus(vocab_size=vocab_size, seq_length=seq_len, seed=1)
+
+    bench = ParetoBenchmark(
+        base_model=model, test_tokens=tokens, window_size=64, stride=32
+    )
+    console.print(
+        "[bold yellow]Running Pareto sweep across all precision runtimes...[/bold yellow]"
+    )
+
+    points = bench.run_sweep(exclude_modules=["lm_head"])
+
+    table = Table(title="Pareto Frontier (Quality vs Compression)", border_style="cyan")
+    table.add_column("Configuration", style="bold yellow")
+    table.add_column("Scheme", style="cyan")
+    table.add_column("Group", style="magenta")
+    table.add_column("Memory (MB)", style="green")
+    table.add_column("Compression", style="bold green")
+    table.add_column("Perplexity", style="bold white")
+    table.add_column("Delta PPL", style="bold red")
+    table.add_column("SQNR (dB)", style="bold magenta")
+
+    for p in points:
+        grp = str(p.group_size) if p.group_size > 0 else "None"
+        delta_str = (
+            f"+{p.perplexity_delta:.3f}"
+            if p.perplexity_delta > 0
+            else f"{p.perplexity_delta:.3f}"
+        )
+        table.add_row(
+            p.name,
+            p.scheme,
+            grp,
+            f"{p.memory_mb:.2f}",
+            f"{p.compression_ratio:.2f}x",
+            f"{p.perplexity:.3f}",
+            delta_str,
+            f"{p.avg_sqnr_db:.1f}",
+        )
+
+    console.print(table)
+
+
 if __name__ == "__main__":
     app()
