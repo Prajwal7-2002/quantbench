@@ -33,7 +33,17 @@
   - In-place recursive model converter traversing PyTorch module trees.
   - Swaps targeted linear layers (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`) while cleanly preserving sensitive layers (`lm_head`).
   - Reports layer conversion counts, memory reduction statistics, and elapsed conversion duration.
-- Added comprehensive unit tests in `tests/test_quant_linear.py`:
-  - 31/31 unit tests passing across entire repo with 93% coverage in 2.27s. All Ruff checks passing.
+## 2026-10-26: Phase 4 — Advanced Calibration Algorithms (SmoothQuant, AWQ, GPTQ)
+
+- Created `quantbench.quant.algorithms`:
+  - `smoothquant.py`: Implemented activation outlier channel profiling and per-channel migration scale computation ($Y = (X \cdot \text{diag}(s)^{-1}) \cdot (\text{diag}(s) \cdot W)$). Mathematical verification confirms exact continuous output invariance before discrete rounding.
+  - `awq.py`: Implemented Activation-aware Weight Quantization with mean activation channel profiling and grid-search over scale candidate $\alpha \in [0, 1]$ to minimize Frobenius reconstruction error $\| W X - \hat{W} X \|_F^2$.
+  - `gptq.py`: Implemented Accurate Post-Training Quantization for Generative Pre-trained Transformers using empirical activation Hessian ($H = 2 X X^T$), diagonal damping regularization ($H_{\text{damp}} = H + \lambda \cdot \text{mean}(\text{diag}(H)) \cdot I$), Cholesky decomposition inversion ($H^{-1} = L^{-T} L^{-1}$), Optimal Brain Surgeon (OBS) coordinate updates, and vectorized block GEMM updates ($W_{:, j+B:} \mathrel{-}= E_{\text{block}} \cdot [H^{-1}]_{j:j+B, j+B:}$).
+- Added comprehensive unit tests in `tests/test_algorithms.py`:
+  - Outlier profiling and continuous mathematical invariance testing.
+  - AWQ reconstruction error reduction testing on synthetic salient channels.
+  - Hessian symmetry, positive semi-definiteness, and GPTQ OBS error reduction testing.
+- 39/39 unit tests passing with 93% test coverage across the repository. All Ruff checks passing.
+
 
 

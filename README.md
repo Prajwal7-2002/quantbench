@@ -119,6 +119,28 @@ converted_model, stats = convert_model_to_quant(
     exclude_modules=["lm_head"],
 )
 print(f"Compressed {stats['converted_layers']} layers: {stats['orig_memory_mb']} MB -> {stats['quant_memory_mb']} MB ({stats['compression_ratio']}x)")
+
+# 3. Advanced Calibration Algorithms (SmoothQuant, AWQ, GPTQ)
+from quantbench import (
+    smooth_linear_weights,
+    extract_activation_channel_scales,
+    search_best_awq_scale,
+    compute_activation_channel_means,
+    gptq_quantize_weights,
+    compute_activation_hessian,
+)
+
+# SmoothQuant: Migrate activation outlier dynamic range to weights
+act_scales = extract_activation_channel_scales(linear, calibration_x)
+w_smoothed, scale = smooth_linear_weights(linear.weight, act_scales, alpha=0.5)
+
+# AWQ: Search optimal per-channel protection scales
+act_means = compute_activation_channel_means(calibration_x)
+best_scale, best_alpha = search_best_awq_scale(linear.weight, act_means, calibration_x)
+
+# GPTQ: Second-order Hessian error compensation
+H = compute_activation_hessian(calibration_x, in_features=4096)
+w_gptq = gptq_quantize_weights(linear.weight, H, bits=4, group_size=128)
 ```
 
 ---
@@ -128,7 +150,7 @@ print(f"Compressed {stats['converted_layers']} layers: {stats['orig_memory_mb']}
 - [x] **Phase 1: Mathematical Primitives & Invariants**: Affine, AbsMax, Group-wise, and FP8 (E4M3/E5M2) simulation with rigorous error bound verification.
 - [x] **Phase 2: Integer Bit-Packing Runtimes**: Vectorized INT4 nibble packing (`uint8`), BitNet ternary packing, and 2:4 sparsity metadata.
 - [x] **Phase 3: Drop-in Neural Layers**: `QuantLinear` PyTorch module, in-place Hugging Face model converter, and buffer serialization.
-- [ ] **Phase 4: Advanced Optimization Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
+- [x] **Phase 4: Advanced Calibration Algorithms**: SmoothQuant outlier migration, AWQ grid search, and GPTQ second-order Hessian updates.
 - [ ] **Phase 5: Perplexity & Evaluation Engine**: Standardized sliding-window perplexity on WikiText-2 and C4.
 - [ ] **Phase 6: servebench Bridge & Pareto Visualizer**: Empirical throughput (tok/s) profiling and terminal ASCII Pareto curves.
 - [ ] **Phase 7: Public Learning Guide & Packaging**: Comprehensive educational walkthrough and PyPI release.
