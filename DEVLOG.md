@@ -57,6 +57,16 @@
 - Added unit tests in `tests/test_eval_and_pareto.py`:
   - 47/47 unit tests passing across entire repo with 95% test coverage in 3.33s. All Ruff checks passing.
 
+## 2026-10-26: Phase 7 — Public Learning Guide & Packaging Complete
+
+- Authoring of `GUIDE.md`:
+  - Comprehensive educational engineering guide detailing arithmetic intensity rooflines, zero-preserving affine invariant derivation, banker's rounding drift, OCP FP8 specifications, vectorized sub-byte packing runtimes, SmoothQuant, AWQ, GPTQ second-order Hessian compensation, persistent buffer architecture, and dual-metric Pareto evaluation.
+- Validated PyPI distribution packaging with `uv build`:
+  - Successfully produced source distribution (`.tar.gz`) and platform-independent wheel (`.whl`).
+- Repository verified across 47 automated test suites with 95% line coverage. All Ruff checks passing.
+- All 7 staged roadmap milestones in `README.md` completed.
+
+
 
 
 
