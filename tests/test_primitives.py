@@ -3,6 +3,7 @@
 import torch
 from typer.testing import CliRunner
 
+import quantbench
 from quantbench.cli import app
 from quantbench.quant.affine import (
     check_quantization_invariants,
@@ -185,7 +186,7 @@ def test_cli_runner():
 
     result_v = runner.invoke(app, ["--version"])
     assert result_v.exit_code == 0
-    assert "0.1.0" in result_v.stdout
+    assert quantbench.__version__ in result_v.stdout
 
     # Test pack-inspect commands
     res_int4 = runner.invoke(app, ["pack-inspect", "--format", "int4"])
