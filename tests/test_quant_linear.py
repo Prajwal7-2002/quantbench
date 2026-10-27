@@ -20,9 +20,7 @@ class TestQuantLinear:
         in_f, out_f = 64, 128
         linear = nn.Linear(in_f, out_f, bias=True)
 
-        quant_linear = QuantLinear.from_linear(
-            linear, scheme="int4", group_size=32, symmetric=True
-        )
+        quant_linear = QuantLinear.from_linear(linear, scheme="int4", group_size=32, symmetric=True)
 
         # 128 * 64 = 8192 elements -> 8192 / 32 = 256 blocks of 32 elements
         # 32 elements pack into 16 uint8 bytes
@@ -43,9 +41,7 @@ class TestQuantLinear:
         in_f, out_f = 64, 128
         linear = nn.Linear(in_f, out_f, bias=True)
 
-        quant_linear = QuantLinear.from_linear(
-            linear, scheme="int4", group_size=-1, symmetric=True
-        )
+        quant_linear = QuantLinear.from_linear(linear, scheme="int4", group_size=-1, symmetric=True)
 
         # Per-channel: (out_f, in_f // 2) = (128, 32)
         assert quant_linear.packed_weight.shape == (out_f, in_f // 2)
@@ -145,6 +141,7 @@ class TestModelConvert:
 
     def test_convert_transformer_mlp_block(self) -> None:
         """Verify recursive conversion swaps targeted linear layers while respecting exclusions."""
+
         class MockTransformerMLP(nn.Module):
             def __init__(self, dim: int, hidden_dim: int):
                 super().__init__()

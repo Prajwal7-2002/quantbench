@@ -56,8 +56,7 @@ def main() -> None:
     print("\n[3] Converted to QuantLinear (BitNet 1.58b {-1, 0, +1}):")
     print(f"    Packed Buffer    : {list(q_ternary.packed_weight.shape)} (4 weights/byte)")
     print(
-        f"    Memory Footprint : {mb_t:.2f} MB "
-        f"({r_t_fp32:.2f}x vs FP32, {r_t_fp16:.2f}x vs FP16)"
+        f"    Memory Footprint : {mb_t:.2f} MB ({r_t_fp32:.2f}x vs FP32, {r_t_fp16:.2f}x vs FP16)"
     )
 
     # 3. Ampere 2:4 Structured Sparsity QuantLinear
@@ -71,8 +70,7 @@ def main() -> None:
     print(f"    Condensed Buffer : {list(q_sparse.condensed_weight.shape)} (50% non-zeros)")
     print(f"    Index Metadata   : {list(q_sparse.packed_metadata.shape)} (2-bit column nibbles)")
     print(
-        f"    Memory Footprint : {mb_s:.2f} MB "
-        f"({r_s_fp32:.2f}x vs FP32, {r_s_fp16:.2f}x vs FP16)"
+        f"    Memory Footprint : {mb_s:.2f} MB ({r_s_fp32:.2f}x vs FP32, {r_s_fp16:.2f}x vs FP16)"
     )
 
     # 4. Verify Forward Pass & Reconstruction SQNR

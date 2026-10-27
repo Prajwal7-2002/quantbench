@@ -257,9 +257,7 @@ def pareto_cmd(
     model = DemoTransformer(vocab=vocab_size, dim=hidden_dim)
     tokens = generate_synthetic_corpus(vocab_size=vocab_size, seq_length=seq_len, seed=1)
 
-    bench = ParetoBenchmark(
-        base_model=model, test_tokens=tokens, window_size=64, stride=32
-    )
+    bench = ParetoBenchmark(base_model=model, test_tokens=tokens, window_size=64, stride=32)
     console.print(
         "[bold yellow]Running Pareto sweep across all precision runtimes...[/bold yellow]"
     )
@@ -279,9 +277,7 @@ def pareto_cmd(
     for p in points:
         grp = str(p.group_size) if p.group_size > 0 else "None"
         delta_str = (
-            f"+{p.perplexity_delta:.3f}"
-            if p.perplexity_delta > 0
-            else f"{p.perplexity_delta:.3f}"
+            f"+{p.perplexity_delta:.3f}" if p.perplexity_delta > 0 else f"{p.perplexity_delta:.3f}"
         )
         table.add_row(
             p.name,

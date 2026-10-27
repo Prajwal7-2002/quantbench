@@ -167,8 +167,8 @@ def test_fp8_analytical_emulator():
     # E4M3 (max 448.0)
     q_e4m3 = _emulate_fp8(x, exp_bits=4, mantissa_bits=3, bias=7, max_val=448.0)
     assert q_e4m3[0].item() == -448.0  # saturated at -max
-    assert q_e4m3[6].item() == 448.0   # saturated at +max
-    assert q_e4m3[3].item() == 0.0     # exact zero
+    assert q_e4m3[6].item() == 448.0  # saturated at +max
+    assert q_e4m3[3].item() == 0.0  # exact zero
 
     # E5M2 (max 57344.0)
     q_e5m2 = _emulate_fp8(x, exp_bits=5, mantissa_bits=2, bias=15, max_val=57344.0)
@@ -203,4 +203,3 @@ def test_cli_runner():
     # Test invalid format
     res_err = runner.invoke(app, ["pack-inspect", "--format", "invalid_format"])
     assert res_err.exit_code != 0
-

@@ -103,11 +103,13 @@ def search_best_awq_scale(
             - best_alpha: Optimal alpha hyperparameter.
     """
     if quant_fn is None:
+
         def default_quant(w: torch.Tensor) -> torch.Tensor:
             q_b, s_b, zp_b, meta = quantize_blockwise(
                 w, group_size=min(128, w.shape[1]), num_bits=4
             )
             return dequantize_blockwise(q_b, s_b, zp_b, meta)
+
         quant_fn = default_quant
 
     # Reference unquantized linear output
@@ -169,11 +171,13 @@ def awq_quantize_weights(
         Tuple of (dequantized_weight, scale).
     """
     if quant_fn is None:
+
         def default_quant(w: torch.Tensor) -> torch.Tensor:
             q_b, s_b, zp_b, meta = quantize_blockwise(
                 w, group_size=min(128, w.shape[1]), num_bits=4
             )
             return dequantize_blockwise(q_b, s_b, zp_b, meta)
+
         quant_fn = default_quant
 
     w_scaled = weight * scale.unsqueeze(0)

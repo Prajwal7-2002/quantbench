@@ -132,9 +132,7 @@ def gptq_quantize_weights(
     def quantize_dequantize_cols(col_w: torch.Tensor) -> torch.Tensor:
         # col_w: (out_features, num_cols)
         if group_size > 0:
-            q_b, s_b, zp_b, meta = quantize_blockwise(
-                col_w, group_size=group_size, num_bits=bits
-            )
+            q_b, s_b, zp_b, meta = quantize_blockwise(col_w, group_size=group_size, num_bits=bits)
             return dequantize_blockwise(q_b, s_b, zp_b, meta)
         else:
             q, scale = quantize_absmax(col_w, num_bits=bits, dim=0)

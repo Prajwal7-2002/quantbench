@@ -163,10 +163,13 @@ class TestSparse24Packing:
 
     def test_index_packing_roundtrip(self) -> None:
         """Test packing and unpacking of 2-bit column position indices."""
-        indices = torch.tensor([
-            [0, 2, 1, 3],
-            [1, 2, 0, 3],
-        ], dtype=torch.int32)
+        indices = torch.tensor(
+            [
+                [0, 2, 1, 3],
+                [1, 2, 0, 3],
+            ],
+            dtype=torch.int32,
+        )
 
         packed = pack_2_4_indices(indices)
         assert packed.dtype == torch.uint8
