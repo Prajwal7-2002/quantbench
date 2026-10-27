@@ -82,9 +82,7 @@ class ParetoBenchmark:
             stride=self.stride,
         )
 
-        base_bytes = sum(
-            p.numel() * 2 for p in self.base_model.parameters()
-        )
+        base_bytes = sum(p.numel() * 2 for p in self.base_model.parameters())
         base_mb = base_bytes / (1024 * 1024)
 
         points: List[ParetoPoint] = []

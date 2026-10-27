@@ -1,6 +1,6 @@
 """quantbench: Unified Quantization Engine, Bit-Packing Runtime & Quality-vs-Speed Benchmark."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from quantbench.bench import ParetoBenchmark, ParetoPoint
 from quantbench.eval import (

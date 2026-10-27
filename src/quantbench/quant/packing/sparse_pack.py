@@ -48,12 +48,7 @@ def pack_2_4_indices(indices: torch.Tensor) -> torch.Tensor:
     idx2 = i32[..., 2::4]
     idx3 = i32[..., 3::4]
 
-    packed = (
-        (idx0 & 0x03)
-        | ((idx1 & 0x03) << 2)
-        | ((idx2 & 0x03) << 4)
-        | ((idx3 & 0x03) << 6)
-    )
+    packed = (idx0 & 0x03) | ((idx1 & 0x03) << 2) | ((idx2 & 0x03) << 4) | ((idx3 & 0x03) << 6)
     return packed.to(torch.uint8)
 
 

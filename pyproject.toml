@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantbench-engine"
-version = "0.1.0"
+version = "0.1.1"
 description = "First-principles LLM quantization engine, bit-packing runtimes, 2:4 sparsity, and Quality-vs-Speed Pareto evaluation benchmark."
 readme = "README.md"
 license = "Apache-2.0"
