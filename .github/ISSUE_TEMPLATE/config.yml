@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Quantbench Documentation & Educational Guides
+    url: https://github.com/Prajwal7-2002/quantbench#readme
+    about: Read our comprehensive guides on sub-byte quantization and hardware sparsity.
+  - name: 🔒 Report a Security Vulnerability
+    url: https://github.com/Prajwal7-2002/quantbench/security/advisories/new
+    about: Privately disclose sensitive security vulnerabilities to maintainers.

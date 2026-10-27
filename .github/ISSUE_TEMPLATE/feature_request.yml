@@ -1,0 +1,44 @@
+name: "✨ Feature Request / Quantization Scheme Proposal"
+description: "Suggest a new sub-byte quantization scheme, calibration algorithm, or hardware backend"
+title: "[Feature]: "
+labels: ["enhancement", "proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing a feature for `quantbench-engine`! We welcome proposals for sub-byte quantization algorithms, calibration methods, and packing runtimes.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Motivation / Use Case
+      description: What quantization scheme, calibration method, or compression format does this address?
+      placeholder: "We want to support FP4 (NV-FP4 microscaling) with E2M1 representation..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Implementation & Bit-Packing Layout
+      description: Describe the mathematical formulation, bit-layout, and vectorized PyTorch implementation.
+      placeholder: |
+        Implement `pack_fp4` using 2 weights per byte with a per-block 8-bit scale factor...
+    validations:
+      required: true
+
+  - type: textarea
+    id: vectorization
+    attributes:
+      label: Vectorization & Performance Verification
+      description: Confirm this can be implemented with pure PyTorch tensor operations without Python loops.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willingness
+    attributes:
+      label: Contribution Readiness
+      options:
+        - label: I am willing to implement this feature and submit a PR.
+          required: false
