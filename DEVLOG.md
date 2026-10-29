@@ -70,3 +70,9 @@
 
 
 
+
+## 2026-10-29: Windows PyTorch Wheel Index Compatibility
+
+- Added [tool.uv.sources] and [[tool.uv.index]] for pytorch-cu124 on Windows (win32) and pytorch-cpu on Linux (linux) in pyproject.toml.
+- Resolves Windows Application Control (WinError 4551) DLL blocking for local development.
+- Verified 47/47 tests passing in 60s with 95% coverage on Python 3.12.10.
