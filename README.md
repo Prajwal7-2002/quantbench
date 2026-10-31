@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/banner.svg" alt="quantbench banner" width="100%">
+</p>
+
 # quantbench ⚖️
 
 [![PyPI](https://img.shields.io/pypi/v/quantbench-engine.svg)](https://pypi.org/project/quantbench-engine/)
