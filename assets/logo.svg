@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#04090e"/>
+      <stop offset="50%" stop-color="#08141e"/>
+      <stop offset="100%" stop-color="#0d2030"/>
+    </linearGradient>
+
+    <!-- Emerald-Cyan Primary Gradient -->
+    <linearGradient id="quantGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+
+    <!-- Lime Accent Gradient -->
+    <linearGradient id="limeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#84cc16"/>
+    </linearGradient>
+
+    <!-- Bit Matrix Glow Filter -->
+    <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Squircle Canvas Base -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" stroke="#10b981" stroke-width="2.5" stroke-opacity="0.35"/>
+  <rect x="24" y="24" width="464" height="464" rx="100" fill="none" stroke="#06b6d4" stroke-width="1" stroke-opacity="0.15"/>
+
+  <!-- Blueprint CAD Grid & Calibration Lines -->
+  <g opacity="0.12" stroke="#06b6d4" stroke-width="1">
+    <line x1="80" y1="40" x2="80" y2="472"/>
+    <line x1="168" y1="40" x2="168" y2="472"/>
+    <line x1="256" y1="40" x2="256" y2="472"/>
+    <line x1="344" y1="40" x2="344" y2="472"/>
+    <line x1="432" y1="40" x2="432" y2="472"/>
+    
+    <line x1="40" y1="80" x2="472" y2="80"/>
+    <line x1="40" y1="168" x2="472" y2="168"/>
+    <line x1="40" y1="256" x2="472" y2="256"/>
+    <line x1="40" y1="344" x2="472" y2="344"/>
+    <line x1="40" y1="432" x2="472" y2="432"/>
+    
+    <!-- Concentric radar circles -->
+    <circle cx="256" cy="256" r="140" fill="none" stroke-dasharray="4 6"/>
+    <circle cx="256" cy="256" r="200" fill="none" stroke-dasharray="2 8"/>
+  </g>
+
+  <!-- 2:4 Structured Sparsity Checkerboard Background Pattern -->
+  <g opacity="0.25">
+    <!-- Row 1: active, active, sparse, sparse -->
+    <rect x="80" y="80" width="18" height="18" rx="4" fill="#10b981"/>
+    <rect x="106" y="80" width="18" height="18" rx="4" fill="#10b981"/>
+    <rect x="132" y="80" width="18" height="18" rx="4" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <rect x="158" y="80" width="18" height="18" rx="4" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="2 2"/>
+
+    <!-- Row 2: sparse, active, sparse, active -->
+    <rect x="80" y="106" width="18" height="18" rx="4" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <rect x="106" y="106" width="18" height="18" rx="4" fill="#06b6d4"/>
+    <rect x="132" y="106" width="18" height="18" rx="4" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <rect x="158" y="106" width="18" height="18" rx="4" fill="#06b6d4"/>
+
+    <!-- Top right annotation -->
+    <text x="432" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', monospace" font-size="11" font-weight="700" fill="#10b981" opacity="0.8" text-anchor="end">2:4 SPARSITY</text>
+    <text x="432" y="94" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', monospace" font-size="10" font-weight="500" fill="#94a3b8" opacity="0.6" text-anchor="end">AMPERE / ADA</text>
+  </g>
+
+  <!-- Quantization Staircase Transfer Function (Continuous -> Discrete) -->
+  <path d="M 120 380 L 170 380 L 170 340 L 220 340 L 220 300 L 270 300 L 270 260 L 320 260 L 320 220 L 370 220 L 370 180 L 400 180" 
+        fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-dasharray="4 4" opacity="0.4"/>
+
+  <!-- Hero Symbol: Precision Quantized Ring / Hexagonal Q Core -->
+  <g filter="url(#emeraldGlow)">
+    <!-- Outer Octagonal / Torus Precision Ring -->
+    <path d="M 256 100 
+             C 342 100 412 170 412 256 
+             C 412 305 389 349 353 378
+             L 396 421
+             C 404 429 398 442 387 442
+             L 345 442
+             C 340 442 335 440 331 436
+             L 295 400
+             C 282 408 269 412 256 412
+             C 170 412 100 342 100 256
+             C 100 170 170 100 256 100 Z
+             M 256 156
+             C 201 156 156 201 156 256
+             C 156 311 201 356 256 356
+             C 311 356 356 311 356 256
+             C 356 201 311 156 256 156 Z" 
+          fill="url(#quantGrad)" fill-rule="evenodd"/>
+  </g>
+
+  <!-- Inner Quantization Step Dial & Discrete Value Nodes -->
+  <g filter="url(#subtleGlow)">
+    <!-- Discrete Weight Levels: BitNet {-1, 0, +1} & INT4 Levels -->
+    <!-- Level -1 (Left) -->
+    <circle cx="196" cy="256" r="10" fill="#04090e" stroke="#10b981" stroke-width="3"/>
+    <text x="196" y="260" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="800" fill="#10b981" text-anchor="middle">-1</text>
+
+    <!-- Level 0 (Center) -->
+    <circle cx="256" cy="256" r="14" fill="#10b981" stroke="#38bdf8" stroke-width="3"/>
+    <text x="256" y="260" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="900" fill="#04090e" text-anchor="middle">0</text>
+
+    <!-- Level +1 (Right) -->
+    <circle cx="316" cy="256" r="10" fill="#04090e" stroke="#38bdf8" stroke-width="3"/>
+    <text x="316" y="260" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="800" fill="#38bdf8" text-anchor="middle">+1</text>
+
+    <!-- Connective scale balance beam -->
+    <line x1="206" y1="256" x2="242" y2="256" stroke="#10b981" stroke-width="2.5"/>
+    <line x1="270" y1="256" x2="306" y2="256" stroke="#38bdf8" stroke-width="2.5"/>
+  </g>
+
+  <!-- Quantizer Mathematical Equation in Lower Arch -->
+  <g opacity="0.9">
+    <rect x="136" y="446" width="240" height="28" rx="8" fill="#06121c" stroke="#10b981" stroke-width="1.2" stroke-opacity="0.4"/>
+    <text x="256" y="465" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="12" font-weight="700" fill="#6ee7b7" text-anchor="middle" letter-spacing="1.5">
+      W_q = round(W / s) + z
+    </text>
+  </g>
+
+  <!-- Precision Corner Calibrations -->
+  <path d="M 44 68 L 44 44 L 68 44" fill="none" stroke="#10b981" stroke-width="2.5" opacity="0.6"/>
+  <path d="M 468 68 L 468 44 L 444 44" fill="none" stroke="#10b981" stroke-width="2.5" opacity="0.6"/>
+  <path d="M 44 444 L 44 468 L 68 468" fill="none" stroke="#10b981" stroke-width="2.5" opacity="0.6"/>
+  <path d="M 468 444 L 468 468 L 444 468" fill="none" stroke="#10b981" stroke-width="2.5" opacity="0.6"/>
+</svg>
