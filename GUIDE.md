@@ -59,7 +59,7 @@ Per-tensor quantization uses a single scale $s$ for the entire weight matrix. A 
 Block-wise quantization slices the weight matrix into independent groups of size $G \in \{32, 64, 128\}$:
 * Each block $k$ computes its own independent scale $s_k$ and zero-point $z_k$.
 * **The Granularity Trade-off**:
-  * Smaller $G$ (e.g. 32): Higher precision, but scales consume $16 / 32 = 0.5$ bits/weight ($12.5\%$ metadata overhead).
+  * Smaller $G$ (e.g. 32): Higher precision, but scales consume $16 / 32 = 0.5$ bits/weight (12.5% metadata overhead).
   * Larger $G$ (e.g. 128): Lower metadata overhead ($16 / 128 = 0.125$ bits/weight), but slightly reduced ability to isolate local outliers.
   * In practice, **$G = 128$ or $G = 64$** represents the Pareto-optimal operating point for LLMs.
 
