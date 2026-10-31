@@ -75,7 +75,7 @@ Bit-exact simulation of **E4M3FN** (higher mantissa precision, range $\pm 448$, 
 Because hardware cannot address sub-byte boundaries, weights are packed into vectorized `uint8` containers:
 * **INT4**: Two 4-bit nibbles packed per byte: `(v0 & 0x0F) | ((v1 & 0x0F) << 4)` ($4\times$ memory compression vs FP16).
 * **BitNet Ternary**: Four $\{-1, 0, 1\}$ weights per byte using offset binary mapping ($8\times$ compression vs FP16).
-* **2:4 Structured Sparsity**: Two non-zero values retained per 4-element block ($50\%$ storage) with 2-bit column positions packed into 4-bit metadata nibbles for Ampere/Ada/Hopper Sparse Tensor Cores ($2\times$ TFLOPS).
+* **2:4 Structured Sparsity**: Two non-zero values retained per 4-element block (50% storage) with 2-bit column positions packed into 4-bit metadata nibbles for Ampere/Ada/Hopper Sparse Tensor Cores ($2\times$ TFLOPS).
 
 ---
 
@@ -205,7 +205,7 @@ The repository includes runnable end-to-end scripts demonstrating drop-in infere
 
 * **[examples/01_quant_linear_inference.py](examples/01_quant_linear_inference.py)**: Demonstrates converting PyTorch `nn.Linear` layers into INT4 blockwise, BitNet 1.58b ternary, and Ampere 2:4 sparse `QuantLinear` modules, verifying forward pass execution and recursive transformer conversion with `lm_head` float exclusion.
 * **[examples/02_advanced_calibration.py](examples/02_advanced_calibration.py)**: Step-by-step demonstration of SmoothQuant outlier migration (proving exact mathematical continuous invariance), AWQ Frobenius grid search for salient channel protection, and GPTQ second-order Hessian Cholesky damping updates yielding $1.48\times$ error reduction.
-* **[examples/03_servebench_roofline_eval.py](examples/03_servebench_roofline_eval.py)**: Bridges `quantbench` drop-in layers with `servebench`'s hardware roofline model (`HARDWARE_PROFILES`, RTX 3050 192 GB/s, T4 320 GB/s), calculating arithmetic intensity $I = \frac{2}{\text{bytes\_per\_param}}$ FLOPs/byte, decode token latency, and DRAM bandwidth traffic reduction (slashing memory traffic by $73.4\%$ for INT4).
+* **[examples/03_servebench_roofline_eval.py](examples/03_servebench_roofline_eval.py)**: Bridges `quantbench` drop-in layers with `servebench`'s hardware roofline model (`HARDWARE_PROFILES`, RTX 3050 192 GB/s, T4 320 GB/s), calculating arithmetic intensity $I = \frac{2}{\text{bytes\_per\_param}}$ FLOPs/byte, decode token latency, and DRAM bandwidth traffic reduction (slashing memory traffic by 73.4% for INT4).
 
 ```bash
 uv run python examples/01_quant_linear_inference.py
