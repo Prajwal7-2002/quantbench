@@ -76,3 +76,15 @@
 - Added [tool.uv.sources] and [[tool.uv.index]] for pytorch-cu124 on Windows (win32) and pytorch-cpu on Linux (linux) in pyproject.toml.
 - Resolves Windows Application Control (WinError 4551) DLL blocking for local development.
 - Verified 47/47 tests passing in 60s with 95% coverage on Python 3.12.10.
+
+## 2026-11-05: v0.1.2 - Half-precision fix and first real-model numbers
+
+- **Bug**: `QuantLinear.from_linear` copied the bias into a float32 parameter, so `F.linear` crashed on any
+  bf16/fp16 model with biased layers (Qwen2.5's q/k/v projections). Every scheme failed on the default
+  model family. Fix: keep the bias in the source dtype and cast it to the input dtype in `forward`.
+  Regression test (`test_half_precision_biased_model_converts_and_runs`) fails 6/6 on the old code.
+- **First real-model evaluation** (`examples/04_real_model_eval.py`, Qwen2.5-0.5B bf16, RTX 3050):
+  INT8 611 MB / ppl 5.79 (bf16: 958 MB / 5.78) at 0.54x speed; INT4 461 MB / ppl 6.99 (+21%) at 0.18x;
+  post-hoc ternary destroys the model (ppl ~1.9M), as expected for a non-ternary-trained model.
+- **Why slower**: the reference runtime dequantizes the full weight every forward, so it moves more bytes
+  than bf16. The 73.4% traffic saving in `examples/03` is theoretical (fused kernel) and is now labelled so.

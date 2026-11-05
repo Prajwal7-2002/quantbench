@@ -199,6 +199,37 @@ uv run quantbench pareto --vocab-size 128 --hidden-dim 128 --seq-len 300
 
 ---
 
+## 📏 Measured on a Real Model (read this first)
+
+`Qwen/Qwen2.5-0.5B-Instruct`, bfloat16, NVIDIA RTX 3050 6 GB Laptop GPU, group size 64, round-to-nearest
+(no calibration), `lm_head` kept in bf16. Perplexity on a fixed 1,024-token text; decode speed is the
+median of 3 interleaved runs of 64 greedy tokens.
+
+| Scheme | Resting VRAM | Perplexity | Decode speed | vs bf16 |
+| :--- | ---: | ---: | ---: | ---: |
+| bf16 (no quantization) | 958 MB | 5.78 | 21.4 tok/s | 1.00× |
+| INT8 | 611 MB | 5.79 | 11.6 tok/s | 0.54× |
+| INT4 | 461 MB | 6.99 (+21%) | 3.8 tok/s | 0.18× |
+| Ternary (BitNet 1.58b format) | 359 MB | 1,934,329 | 4.0 tok/s | 0.19× |
+
+What this means:
+* **Memory goes down, speed goes down too.** `QuantLinear` is an educational reference runtime: each
+  forward pass unpacks the whole weight matrix back to bf16 and then runs a normal matmul. That reads the
+  packed weights *and* writes and reads a full bf16 copy, so it moves more bytes than plain bf16. The
+  memory-traffic savings computed in `examples/03` are what a fused dequantize-in-the-matmul kernel (as in
+  llama.cpp, Marlin or ExLlama) would get; this pure-PyTorch runtime does not get them.
+* **INT8 is nearly lossless; plain INT4 costs ~21% perplexity** on a 0.5B model. Calibrated methods
+  (`AWQ`, `GPTQ` in `quantbench.algorithms`) exist to reduce this gap.
+* **Ternary only works for models trained to be ternary** (BitNet b1.58). Applying it after training, as
+  here, destroys the model. The format and packing are correct; the model is not ternary-trained.
+
+Reproduce: `python examples/04_real_model_eval.py --model Qwen/Qwen2.5-0.5B-Instruct` (CUDA GPU, ~3 GB).
+
+> Versions before 0.1.2 crashed on any half-precision model with biased linear layers (such as Qwen2.5)
+> because the bias was stored as float32. Fixed in 0.1.2.
+
+---
+
 ## 🔬 Executable Examples & Roofline Integration
 
 The repository includes runnable end-to-end scripts demonstrating drop-in inference, advanced calibration, and hardware roofline modeling (integrating with `servebench`):
@@ -211,6 +242,7 @@ The repository includes runnable end-to-end scripts demonstrating drop-in infere
 uv run python examples/01_quant_linear_inference.py
 uv run python examples/02_advanced_calibration.py
 uv run python examples/03_servebench_roofline_eval.py
+python examples/04_real_model_eval.py   # real Hugging Face model, needs a CUDA GPU
 ```
 
 ---
