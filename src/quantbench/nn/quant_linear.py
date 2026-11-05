@@ -142,7 +142,8 @@ class QuantLinear(nn.Module):
 
         w = linear.weight.data.clone().to(torch.float32)
         if has_bias:
-            quant_layer.bias.data.copy_(linear.bias.data)
+            # Keep the bias in the source layer's dtype (e.g. bf16/fp16), not float32.
+            quant_layer.bias = nn.Parameter(linear.bias.data.clone())
 
         scheme_lower = scheme.lower()
 
@@ -262,7 +263,8 @@ class QuantLinear(nn.Module):
             Projected activation tensor with shape (..., out_features).
         """
         w_hat = self.dequantize_weight().to(x.dtype)
-        return F.linear(x, w_hat, self.bias)
+        bias = self.bias.to(x.dtype) if self.bias is not None else None
+        return F.linear(x, w_hat, bias)
 
     def memory_footprint_bytes(self) -> dict[str, float]:
         """Compute exact memory footprint in bytes and compression factor relative to FP16.

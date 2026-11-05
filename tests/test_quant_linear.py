@@ -188,3 +188,26 @@ class TestModelConvert:
         # Verify cosine similarity is high (>0.95)
         cos_sim = F.cosine_similarity(out_unquant, out_quant, dim=-1).mean().item()
         assert cos_sim > 0.95
+
+
+@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float16])
+@pytest.mark.parametrize("scheme", ["int8", "int4", "ternary"])
+def test_half_precision_biased_model_converts_and_runs(dtype, scheme):
+    """Regression: Qwen-style biased projections in bf16/fp16 used to crash in forward
+    because the bias was stored as float32."""
+    torch.manual_seed(0)
+    model = nn.Sequential(nn.Linear(64, 128, bias=True), nn.Linear(128, 32, bias=True)).to(dtype)
+    x = torch.randn(4, 64, dtype=dtype)
+    with torch.no_grad():
+        ref = model(x).float()
+    convert_model_to_quant(model, scheme=scheme, group_size=32, exclude_modules=[])
+    for m in model:
+        assert isinstance(m, QuantLinear)
+        assert m.bias.dtype == dtype
+    with torch.no_grad():
+        out = model(x)
+    assert out.dtype == dtype
+    assert out.shape == ref.shape
+    if scheme != "ternary":  # post-hoc ternary is lossy by design
+        rel = (out.float() - ref).norm() / ref.norm()
+        assert rel < (0.05 if scheme == "int8" else 0.3)
