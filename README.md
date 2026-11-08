@@ -5,6 +5,7 @@
 # quantbench ⚖️
 
 [![PyPI](https://img.shields.io/pypi/v/quantbench-engine.svg)](https://pypi.org/project/quantbench-engine/)
+[![HuggingFace Dataset](https://img.shields.io/badge/🤗_HuggingFace-quantbench--pareto-yellow)](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)
 [![CI](https://github.com/Prajwal7-2002/quantbench/actions/workflows/ci.yml/badge.svg)](https://github.com/Prajwal7-2002/quantbench/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
