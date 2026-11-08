@@ -347,7 +347,7 @@ The open-source empirical benchmark quantifying the **Pareto frontier** between 
 
 * **GitHub Repository:** [Prajwal7-2002/quantbench](https://github.com/Prajwal7-2002/quantbench)
 * **PyPI Engine:** [`pip install quantbench-engine`](https://pypi.org/project/quantbench-engine/)
-* **Engine Architecture Guide:** [Golden Inference Guide (Chapter 4)](https://github.com/Prajwal7-2002/interview_prep/blob/main/golden_interview_guide.md#chapter-4-quantbench--the-from-scratch-quantization-engine)
+* **Documentation:** [prajwal7-2002.github.io/quantbench](https://prajwal7-2002.github.io/quantbench/)
 * **Author:** Prajwal Pujari ([@Prajwal7-2002](https://github.com/Prajwal7-2002))
 
 ---
