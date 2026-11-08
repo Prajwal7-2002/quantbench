@@ -67,6 +67,7 @@ uv add quantbench-engine
 
 ## 🚀 Navigation
 
+* **[Interactive Studio (0ms CAD)](studio.html)** — Live in-browser Pareto frontier explorer, BitNet 1.58b / INT4 bit-packing register simulator, and Transformer layer sensitivity lab.
 * **[Mathematical Foundations](math-foundations.md)** — Zero-preserving affine invariants, symmetric AbsMax, blockwise grouping, and OCP FP8 emulation.
 * **[Sub-Byte Bit-Packing](bit-packing.md)** — INT4 nibble packing, two's complement sign extension, and BitNet 1.58b ternary vectorization.
 * **[2:4 Structured Sparsity](sparsity-24.md)** — NVIDIA Ampere/Ada/Hopper sparse tensor core layout and metadata encoding.

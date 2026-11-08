@@ -1,0 +1,1868 @@
+"""Build standalone, zero-dependency Static Web Studio for QuantBench."""
+
+import json
+import shutil
+from pathlib import Path
+
+def generate_html(pareto_data: list, layer_data: list) -> str:
+    pareto_json_str = json.dumps(pareto_data)
+    layer_json_str = json.dumps(layer_data)
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantBench 🔬 Interactive Sub-Byte Quantization & Pareto Frontier Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {{
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f293d;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.15);
+      --cyan: #06b6d4;
+      --purple: #8b5cf6;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }}
+
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }}
+
+    /* Top Nav */
+    header {{
+      background: rgba(17, 24, 39, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+    .logo-group {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }}
+    .logo-badge {{
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #0b0f19;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      letter-spacing: -0.5px;
+    }}
+    .logo-title {{
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+    }}
+    .logo-sub {{
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }}
+    .header-links {{
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }}
+    .btn-link {{
+      background: #1e293b;
+      color: var(--text-main);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid var(--card-border);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }}
+    .btn-link:hover {{
+      background: #334155;
+      border-color: #475569;
+    }}
+
+    /* Main Container */
+    .container {{
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 24px;
+    }}
+
+    /* Hero Banner */
+    .hero {{
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(11, 15, 25, 0) 100%);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }}
+    .hero-h1 {{
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }}
+    .hero-p {{
+      color: var(--text-muted);
+      font-size: 14px;
+      max-width: 820px;
+    }}
+    .hero-stats {{
+      display: flex;
+      gap: 20px;
+    }}
+    .stat-box {{
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      text-align: center;
+    }}
+    .stat-val {{
+      font-size: 20px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--accent);
+    }}
+    .stat-lbl {{
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }}
+
+    /* Navigation Tabs */
+    .tab-bar {{
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }}
+    .tab-btn {{
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+    }}
+    .tab-btn:hover {{
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+    }}
+    .tab-btn.active {{
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(16, 185, 129, 0.05);
+    }}
+
+    /* Content Sections */
+    .tab-content {{
+      display: none;
+    }}
+    .tab-content.active {{
+      display: block;
+    }}
+
+    /* Card Layouts */
+    .card {{
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }}
+    .card-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }}
+    .card-title {{
+      font-size: 17px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .card-sub {{
+      font-size: 13px;
+      color: var(--text-muted);
+    }}
+
+    /* Controls & Toggles */
+    .control-group {{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }}
+    .pill-btn {{
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }}
+    .pill-btn:hover {{
+      color: var(--text-main);
+      border-color: #475569;
+    }}
+    .pill-btn.active {{
+      background: var(--accent);
+      color: #0b0f19;
+      border-color: var(--accent);
+    }}
+
+    /* Charts */
+    .chart-container {{
+      position: relative;
+      width: 100%;
+      height: 480px;
+      background: #0d1322;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }}
+    svg.interactive-plot {{
+      width: 100%;
+      height: 100%;
+    }}
+
+    /* Tooltip */
+    .plot-tooltip {{
+      position: absolute;
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      font-size: 12px;
+      z-index: 50;
+      display: none;
+      max-width: 280px;
+    }}
+    .plot-tooltip-title {{
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }}
+
+    /* Table */
+    .data-table-wrapper {{
+      overflow-x: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+    }}
+    table.data-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }}
+    table.data-table th {{
+      background: #131c31;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--card-border);
+      cursor: pointer;
+      user-select: none;
+    }}
+    table.data-table th:hover {{
+      color: var(--text-main);
+    }}
+    table.data-table td {{
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }}
+    table.data-table tr:hover {{
+      background: rgba(255, 255, 255, 0.02);
+    }}
+    .badge {{
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }}
+    .badge-fp16 {{ background: #334155; color: #cbd5e1; }}
+    .badge-int8 {{ background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }}
+    .badge-fp8 {{ background: rgba(6, 182, 212, 0.2); color: #06b6d4; border: 1px solid rgba(6, 182, 212, 0.3); }}
+    .badge-int4 {{ background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }}
+    .badge-ternary {{ background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }}
+    .badge-sparse {{ background: rgba(139, 92, 246, 0.2); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); }}
+
+    /* Bit Packing Interactive UI */
+    .packing-grid {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }}
+    @media (max-width: 900px) {{
+      .packing-grid {{ grid-template-columns: 1fr; }}
+    }}
+    .slot-row {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d1322;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+    }}
+    .slot-label {{
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .slot-options {{
+      display: flex;
+      gap: 6px;
+    }}
+    .val-btn {{
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      transition: all 0.15s ease;
+    }}
+    .val-btn:hover {{
+      background: #334155;
+    }}
+    .val-btn.active {{
+      background: var(--accent);
+      color: #0b0f19;
+      border-color: var(--accent);
+    }}
+    .val-btn.val-neg.active {{
+      background: var(--rose);
+      color: #fff;
+      border-color: var(--rose);
+    }}
+    .val-btn.val-zero.active {{
+      background: #64748b;
+      color: #fff;
+      border-color: #64748b;
+    }}
+    .val-btn.val-pos.active {{
+      background: var(--cyan);
+      color: #0b0f19;
+      border-color: var(--cyan);
+    }}
+
+    /* Register Display */
+    .register-box {{
+      background: #0d1322;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 18px;
+    }}
+    .bits-container {{
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      margin: 16px 0;
+    }}
+    .bit-cell {{
+      flex: 1;
+      max-width: 48px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      text-align: center;
+      padding: 8px 4px;
+      transition: all 0.2s ease;
+    }}
+    .bit-cell.val-1 {{
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }}
+    .bit-idx {{
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      margin-bottom: 2px;
+    }}
+    .bit-val {{
+      font-size: 18px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+    }}
+
+    .hex-display {{
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: #131c31;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 14px;
+    }}
+    .hex-item {{
+      text-align: center;
+    }}
+    .hex-val {{
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--cyan);
+    }}
+    .hex-lbl {{
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }}
+
+    /* Code Snippet Box */
+    .code-box {{
+      background: #0d1322;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #e2e8f0;
+      position: relative;
+      overflow-x: auto;
+      line-height: 1.6;
+    }}
+    .copy-btn {{
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }}
+    .copy-btn:hover {{
+      color: var(--text-main);
+      background: #334155;
+    }}
+
+    /* Layer Sensitivity Bars */
+    .layer-bar-row {{
+      margin-bottom: 14px;
+    }}
+    .layer-info {{
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }}
+    .layer-name {{
+      font-weight: 600;
+    }}
+    .layer-metric {{
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }}
+    .progress-track {{
+      background: #1e293b;
+      border-radius: 6px;
+      height: 12px;
+      overflow: hidden;
+      display: flex;
+    }}
+    .progress-fill {{
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.3s ease;
+    }}
+
+    /* Footer */
+    footer {{
+      margin-top: 50px;
+      border-top: 1px solid var(--card-border);
+      padding: 30px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }}
+    footer a {{
+      color: var(--accent);
+      text-decoration: none;
+    }}
+    footer a:hover {{
+      text-decoration: underline;
+    }}
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-group">
+      <div class="logo-badge">QUANTBENCH</div>
+      <div class="logo-title">LLM Sub-Byte Quantization Studio</div>
+      <span class="logo-sub">Zero-Cold-Start Client-Side CAD</span>
+    </div>
+    <div class="header-links">
+      <a class="btn-link" href="https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto" target="_blank">
+        🤗 HF Dataset
+      </a>
+      <a class="btn-link" href="https://pypi.org/project/quantbench/" target="_blank">
+        📦 PyPI v0.3.2
+      </a>
+      <a class="btn-link" href="https://github.com/Prajwal7-2002/quantbench" target="_blank">
+        ★ GitHub
+      </a>
+      <a class="btn-link" href="https://prajwal7-2002.github.io/quantbench/" target="_blank">
+        📖 Docs
+      </a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div>
+        <h1 class="hero-h1">Empirical Quantization Pareto Frontier & Sub-Byte Bit-Packing</h1>
+        <p class="hero-p">
+          Explore quality vs. compression Pareto curves, simulate BitNet 1.58b ternary and INT4 nibble bitshift registers, assess Transformer layer sensitivity, and inspect exact reconstruction SQNR in real time.
+        </p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-box">
+          <div class="stat-val" id="stat-configs">12</div>
+          <div class="stat-lbl">Configurations</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">7.50x</div>
+          <div class="stat-lbl">Max Compression</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">+0.009</div>
+          <div class="stat-lbl">INT8 ΔPPL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('pareto')">📊 Pareto Frontier Explorer</button>
+      <button class="tab-btn" onclick="switchTab('packing')">⚙️ Sub-Byte Bit-Packing Visualizer</button>
+      <button class="tab-btn" onclick="switchTab('layers')">🧠 Layer Sensitivity Simulator</button>
+      <button class="tab-btn" onclick="switchTab('lab')">🧮 Live Quantizer & SQNR Lab</button>
+      <button class="tab-btn" onclick="switchTab('cli')">💻 Python CLI Companion</button>
+    </div>
+
+    <!-- TAB 1: PARETO FRONTIER EXPLORER -->
+    <div id="tab-pareto" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Interactive Pareto Frontier Scatter Explorer</div>
+            <div class="card-sub">Mapping Bit-Width & Compression Ratio against Signal-to-Quantization-Noise Ratio (SQNR) and Perplexity</div>
+          </div>
+          <div class="control-group">
+            <span style="font-size:12px; color:var(--text-muted);">Y-Axis:</span>
+            <button class="pill-btn active" id="btn-y-sqnr" onclick="setPlotMetric('sqnr_db')">SQNR (dB)</button>
+            <button class="pill-btn" id="btn-y-ppl" onclick="setPlotMetric('perplexity_delta')">Δ Perplexity</button>
+            <button class="pill-btn" id="btn-y-recon" onclick="setPlotMetric('reconstruction_error')">L2 Error</button>
+            <span style="font-size:12px; color:var(--text-muted); margin-left: 10px;">X-Axis:</span>
+            <button class="pill-btn active" id="btn-x-comp" onclick="setPlotX('compression_ratio')">Compression Ratio</button>
+            <button class="pill-btn" id="btn-x-bits" onclick="setPlotX('bits_per_weight')">Bits / Weight</button>
+          </div>
+        </div>
+
+        <div class="chart-container" id="chart-box">
+          <svg class="interactive-plot" id="pareto-svg"></svg>
+          <div class="plot-tooltip" id="plot-tooltip"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Benchmark Configurations Table</div>
+            <div class="card-sub">Measured on deterministic Transformer evaluation block across 512 calibration tokens</div>
+          </div>
+          <div class="control-group">
+            <button class="pill-btn active" onclick="filterTable('all')">All (12)</button>
+            <button class="pill-btn" onclick="filterTable('int8')">INT8 / FP8</button>
+            <button class="pill-btn" onclick="filterTable('int4')">INT4 / AWQ / GPTQ</button>
+            <button class="pill-btn" onclick="filterTable('subbyte')">BitNet / 2:4 Sparsity</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrapper">
+          <table class="data-table" id="pareto-table">
+            <thead>
+              <tr>
+                <th onclick="sortTable('configuration')">Configuration ⇕</th>
+                <th onclick="sortTable('bits_per_weight')">Bits / Wt ⇕</th>
+                <th onclick="sortTable('compression_ratio')">Ratio ⇕</th>
+                <th onclick="sortTable('memory_footprint_mb')">VRAM (MB) ⇕</th>
+                <th onclick="sortTable('sqnr_db')">SQNR (dB) ⇕</th>
+                <th onclick="sortTable('perplexity_delta')">Δ PPL ⇕</th>
+                <th>Hardware Acceleration</th>
+                <th>Primary Use Case</th>
+              </tr>
+            </thead>
+            <tbody id="pareto-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: SUB-BYTE BIT-PACKING VISUALIZER -->
+    <div id="tab-packing" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Sub-Byte Bit-Packing Runtime Simulator</div>
+            <div class="card-sub">Zero-overhead vectorized bitshift packing into standard uint8 byte containers</div>
+          </div>
+          <div class="control-group">
+            <button class="pill-btn active" id="btn-mode-bitnet" onclick="setPackingMode('bitnet')">BitNet 1.58b (Ternary 4-in-1)</button>
+            <button class="pill-btn" id="btn-mode-int4" onclick="setPackingMode('int4')">Signed INT4 (2 Nibbles)</button>
+            <button class="pill-btn" id="btn-mode-sparse" onclick="setPackingMode('sparse')">Ampere 2:4 Structured Sparsity</button>
+          </div>
+        </div>
+
+        <!-- Mode A: BitNet 1.58b -->
+        <div id="packing-mode-bitnet">
+          <div class="packing-grid">
+            <div>
+              <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--accent);">
+                1. Input Ternary Weights ({-1, 0, +1})
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                Select 4 ternary values. Each value is biased by +1 into <span style="font-family:var(--font-mono); color:var(--text-main);">u = v + 1 &isin; {{0, 1, 2}}</span> and shifted into 2-bit slices of a single uint8 byte container.
+              </p>
+
+              <div id="bitnet-slots"></div>
+
+              <div style="margin-top: 14px; display: flex; gap: 8px;">
+                <button class="btn-link" onclick="randomizeBitNet()">🎲 Randomize Weights</button>
+                <button class="btn-link" onclick="setBitNetPreset([-1, 0, 1, -1])">Preset: Balanced</button>
+                <button class="btn-link" onclick="setBitNetPreset([1, 1, 1, 1])">Preset: All +1</button>
+              </div>
+            </div>
+
+            <div>
+              <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--cyan);">
+                2. Packed 8-Bit Register Layout
+              </h3>
+              <div class="register-box">
+                <div style="font-size: 12px; color: var(--text-muted); text-align: center;">
+                  uint8 Byte = (u0 & 0x03) | ((u1 & 0x03) &lt;&lt; 2) | ((u2 & 0x03) &lt;&lt; 4) | ((u3 & 0x03) &lt;&lt; 6)
+                </div>
+
+                <div class="bits-container" id="bitnet-bits"></div>
+
+                <div class="hex-display">
+                  <div class="hex-item">
+                    <div class="hex-val" id="bitnet-dec">0</div>
+                    <div class="hex-lbl">Decimal uint8</div>
+                  </div>
+                  <div class="hex-item">
+                    <div class="hex-val" id="bitnet-hex">0x00</div>
+                    <div class="hex-lbl">Hexadecimal</div>
+                  </div>
+                  <div class="hex-item">
+                    <div class="hex-val" id="bitnet-savings">7.50x</div>
+                    <div class="hex-lbl">Memory Reduction</div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; padding: 12px; font-size: 12px;">
+                  <strong style="color: var(--accent);">✓ Unpack Verification:</strong>
+                  <div id="bitnet-unpack-verify" style="font-family: var(--font-mono); margin-top: 4px;"></div>
+                </div>
+              </div>
+
+              <div style="margin-top: 14px; font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+                💡 <strong>Radix-3 Information Density:</strong> While 2-bit packing stores 4 values/byte, Radix-3 base-3 packing (<span style="font-family: var(--font-mono);">3^5 = 243 &lt; 256</span>) fits <strong>5 ternary values</strong> per byte, hitting the Shannon theoretical limit of <span style="font-family: var(--font-mono);">log2(3) &approx; 1.585 bits/weight</span>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode B: INT4 Nibbles -->
+        <div id="packing-mode-int4" style="display: none;">
+          <div class="packing-grid">
+            <div>
+              <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--amber);">
+                1. Input Signed 4-Bit Integers ([-8, +7])
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                Two 4-bit integers are packed into one byte: Low Nibble (Bits 0..3) stores even index, High Nibble (Bits 4..7) stores odd index.
+              </p>
+
+              <div class="slot-row">
+                <div class="slot-label">
+                  <span>Even Index (v_even):</span>
+                  <span id="int4-low-val" style="font-family:var(--font-mono); color:var(--amber); font-weight:700;">-3</span>
+                </div>
+                <input type="range" min="-8" max="7" value="-3" id="int4-low-slider" oninput="updateINT4()" style="width: 140px;">
+              </div>
+
+              <div class="slot-row">
+                <div class="slot-label">
+                  <span>Odd Index (v_odd):</span>
+                  <span id="int4-high-val" style="font-family:var(--font-mono); color:var(--cyan); font-weight:700;">5</span>
+                </div>
+                <input type="range" min="-8" max="7" value="5" id="int4-high-slider" oninput="updateINT4()" style="width: 140px;">
+              </div>
+
+              <div style="margin-top: 14px; display: flex; gap: 8px;">
+                <button class="btn-link" onclick="setINT4Preset(-8, 7)">Extremes: [-8, +7]</button>
+                <button class="btn-link" onclick="setINT4Preset(0, 0)">Zeros: [0, 0]</button>
+                <button class="btn-link" onclick="setINT4Preset(-1, -1)">Negative: [-1, -1]</button>
+              </div>
+            </div>
+
+            <div>
+              <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--purple);">
+                2. Packed INT4 Register
+              </h3>
+              <div class="register-box">
+                <div style="font-size: 12px; color: var(--text-muted); text-align: center;">
+                  byte = (v_even & 0x0F) | ((v_odd & 0x0F) &lt;&lt; 4)
+                </div>
+
+                <div class="bits-container" id="int4-bits"></div>
+
+                <div class="hex-display">
+                  <div class="hex-item">
+                    <div class="hex-val" id="int4-dec">0</div>
+                    <div class="hex-lbl">Decimal uint8</div>
+                  </div>
+                  <div class="hex-item">
+                    <div class="hex-val" id="int4-hex">0x00</div>
+                    <div class="hex-lbl">Hexadecimal</div>
+                  </div>
+                  <div class="hex-item">
+                    <div class="hex-val">4.00x</div>
+                    <div class="hex-lbl">vs FP16 Footprint</div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px; padding: 12px; font-size: 12px;">
+                  <strong style="color: var(--amber);">✓ Sign Extension Check:</strong>
+                  <div id="int4-unpack-verify" style="font-family: var(--font-mono); margin-top: 4px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode C: Ampere 2:4 Structured Sparsity -->
+        <div id="packing-mode-sparse" style="display: none;">
+          <div class="packing-grid">
+            <div>
+              <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--purple);">
+                1. 4-Element Floating-Point Block
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                NVIDIA Ampere/Ada/Hopper Sparse Tensor Cores require exactly 2 non-zeros out of every consecutive 4 elements. The smallest 2 magnitudes are pruned to zero.
+              </p>
+
+              <div id="sparse-inputs" style="display: flex; gap: 8px; margin-bottom: 14px;">
+                <input class="pill-btn" style="width: 25%; text-align: center; font-family: var(--font-mono);" type="number" step="0.05" id="sparse-w0" value="0.45" oninput="updateSparse()">
+                <input class="pill-btn" style="width: 25%; text-align: center; font-family: var(--font-mono);" type="number" step="0.05" id="sparse-w1" value="-0.12" oninput="updateSparse()">
+                <input class="pill-btn" style="width: 25%; text-align: center; font-family: var(--font-mono);" type="number" step="0.05" id="sparse-w2" value="0.88" oninput="updateSparse()">
+                <input class="pill-btn" style="width: 25%; text-align: center; font-family: var(--font-mono);" type="number" step="0.05" id="sparse-w3" value="0.05" oninput="updateSparse()">
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-link" onclick="setSparsePreset([0.82, -0.05, 0.01, -0.65])">Preset A</button>
+                <button class="btn-link" onclick="setSparsePreset([0.15, 0.95, -0.42, 0.08])">Preset B</button>
+                <button class="btn-link" onclick="randomizeSparse()">🎲 Randomize</button>
+              </div>
+
+              <div style="margin-top: 16px; background: #0d1322; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px; font-size: 13px;">
+                <div style="font-weight: 700; color: var(--purple); margin-bottom: 6px;">Pruning Decision:</div>
+                <div id="sparse-decision-text" style="color: var(--text-muted); font-size: 12px; line-height: 1.5;"></div>
+              </div>
+            </div>
+
+            <div>
+              <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--cyan);">
+                2. Condensed Matrix & 2-Bit Metadata Packing
+              </h3>
+              <div class="register-box">
+                <div style="font-size: 12px; color: var(--text-muted);">
+                  Dense Matrix Shape: <strong>(M, N/2)</strong> &mdash; 50% Weights Stored
+                </div>
+
+                <div id="sparse-retained-display" style="display: flex; gap: 8px; margin: 12px 0;"></div>
+
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">
+                  Metadata: Two 2-bit column indices fit into 1 nibble (4 bits). Two blocks pack into 1 byte.
+                </div>
+
+                <div class="hex-display" style="margin-top: 10px;">
+                  <div class="hex-item">
+                    <div class="hex-val" id="sparse-indices-val">[0, 2]</div>
+                    <div class="hex-lbl">Retained Positions</div>
+                  </div>
+                  <div class="hex-item">
+                    <div class="hex-val" id="sparse-nibble-hex">0x8</div>
+                    <div class="hex-lbl">Packed 4-Bit Nibble</div>
+                  </div>
+                  <div class="hex-item">
+                    <div class="hex-val" style="color: var(--accent);">2.00x</div>
+                    <div class="hex-lbl">Sparse Tensor Core FLOPs</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: LAYER SENSITIVITY SIMULATOR -->
+    <div id="tab-layers" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Transformer Layer Sensitivity Analysis</div>
+            <div class="card-sub">Layer-by-layer Signal-to-Quantization-Noise Ratio (SQNR) retention & Outlier Resilience</div>
+          </div>
+          <div class="control-group">
+            <span style="font-size:12px; color:var(--text-muted);">Scheme:</span>
+            <button class="pill-btn active" id="btn-ls-int8" onclick="setLayerScheme('INT8 AbsMax')">INT8 AbsMax</button>
+            <button class="pill-btn" id="btn-ls-int4" onclick="setLayerScheme('INT4 Blockwise (G=128)')">INT4 Blockwise</button>
+            <button class="pill-btn" id="btn-ls-awq" onclick="setLayerScheme('INT4 AWQ')">INT4 AWQ</button>
+            <button class="pill-btn" id="btn-ls-bitnet" onclick="setLayerScheme('BitNet 1.58b')">BitNet 1.58b</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+          <div>
+            <div id="layer-bars-container"></div>
+          </div>
+
+          <div>
+            <div style="background: #0d1322; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
+              <h4 style="font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 10px;">
+                💡 Architectural Insights
+              </h4>
+              <ul style="font-size: 12px; color: var(--text-muted); line-height: 1.7; padding-left: 18px;">
+                <li><strong style="color:var(--rose)">Attention Q & K Projections:</strong> Most vulnerable to quantization. Phase drift in query/key dot-products leads to exponential attention softmax dispersion.</li>
+                <li><strong style="color:var(--accent)">MLP Gate & Up Projections:</strong> Most resilient. Non-linear activations (SwiGLU/GeLU) naturally dampen small magnitude quantization errors.</li>
+                <li><strong style="color:var(--amber)">MLP Down Projection:</strong> Acts as an information bottleneck compressing representations back into d_model, requiring higher precision or finer group sizes.</li>
+              </ul>
+
+              <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--card-border);">
+                <div style="font-size: 12px; font-weight: 600; color: var(--cyan); margin-bottom: 6px;">
+                  Mixed Precision Strategy:
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+                  Keep Q, K, and Down-proj in INT8 or INT4 AWQ (G=32), while compressing Gate, Up, and Value into aggressive 2-bit or INT4 (G=128) to achieve optimal throughput with 0 PPL degradation.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: LIVE QUANTIZER & SQNR LAB -->
+    <div id="tab-lab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Live Quantizer & SQNR Lab</div>
+            <div class="card-sub">Test real weight distributions, observe scale factors, discrete integer bins, and exact dB SNR</div>
+          </div>
+          <div class="control-group">
+            <span style="font-size:12px; color:var(--text-muted);">Preset Tensor:</span>
+            <button class="pill-btn active" onclick="loadLabPreset('normal')">Gaussian N(0,1)</button>
+            <button class="pill-btn" onclick="loadLabPreset('outlier')">LLaMA Outlier Spike</button>
+            <button class="pill-btn" onclick="loadLabPreset('uniform')">Uniform [-1, 1]</button>
+            <button class="pill-btn" onclick="loadLabPreset('laplace')">Heavy-Tailed Laplace</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 6px;">
+              Input Float Tensor (comma-separated):
+            </label>
+            <textarea id="lab-input-tensor" style="width: 100%; height: 80px; background: #0d1322; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; color: #fff; font-family: var(--font-mono); font-size: 12px; resize: vertical;" oninput="runLabQuantize()"></textarea>
+          </div>
+
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 6px;">
+              Quantization Method:
+            </label>
+            <select id="lab-method-select" onchange="runLabQuantize()" style="width: 100%; background: #0d1322; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; color: #fff; font-family: var(--font-sans); font-size: 13px;">
+              <option value="int8_sym">INT8 Symmetric AbsMax ([-127, 127])</option>
+              <option value="int8_asym">INT8 Asymmetric Min-Max ([0, 255])</option>
+              <option value="int4_sym">INT4 Symmetric ([-7, 7])</option>
+              <option value="bitnet">BitNet 1.58b Ternary ({-1, 0, +1})</option>
+            </select>
+
+            <div class="hex-display" style="margin-top: 10px;">
+              <div class="hex-item">
+                <div class="hex-val" id="lab-scale-val">0.0000</div>
+                <div class="hex-lbl">Scale (S)</div>
+              </div>
+              <div class="hex-item">
+                <div class="hex-val" id="lab-zp-val">0</div>
+                <div class="hex-lbl">Zero-Point (Z)</div>
+              </div>
+              <div class="hex-item">
+                <div class="hex-val" id="lab-sqnr-val" style="color: var(--accent);">0.0 dB</div>
+                <div class="hex-lbl">Exact SQNR</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #0d1322; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
+          <h4 style="font-size: 13px; font-weight: 700; color: var(--cyan); margin-bottom: 10px;">
+            Reconstructed Tensor vs Original Comparison
+          </h4>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Index</th>
+                  <th>Original (X)</th>
+                  <th>Quantized Discrete (Q)</th>
+                  <th>Dequantized (X̂)</th>
+                  <th>Error (X - X̂)</th>
+                </tr>
+              </thead>
+              <tbody id="lab-inspect-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: CLI COMPANION -->
+    <div id="tab-cli" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Python SDK & CLI Usage</div>
+            <div class="card-sub">Reproduce every evaluation result locally in 2 lines of Python</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px;">Installation:</div>
+          <div class="code-box">
+            pip install quantbench
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--cyan); margin-bottom: 8px;">Sub-Byte Bit-Packing Python Example:</div>
+          <div class="code-box">
+import torch
+from quantbench.quant.packing.ternary_pack import pack_ternary, unpack_ternary
+from quantbench.quant.packing.int4_pack import pack_nibbles, unpack_nibbles
+from quantbench.quant.packing.sparse_pack import prune_and_compress_2_4
+
+# 1. BitNet 1.58b Ternary Packing (7.5x compression)
+weights = torch.tensor([-1, 0, 1, -1, 0, 1, 1, -1], dtype=torch.int8)
+packed_bytes, orig_len = pack_ternary(weights, mode="2bit")
+unpacked = unpack_ternary(packed_bytes, original_length=orig_len, mode="2bit")
+assert torch.equal(weights, unpacked)
+
+# 2. INT4 Nibble Packing
+byte_val = pack_nibbles(low=-3, high=5)
+low, high = unpack_nibbles(byte_val, signed=True)
+print(f"Packed byte: 0x{{byte_val:02X}}, Unpacked: [{{low}}, {{high}}]")
+
+# 3. Ampere 2:4 Structured Sparsity
+dense_block = torch.tensor([[0.45, -0.12, 0.88, 0.05]])
+compressed, indices = prune_and_compress_2_4(dense_block)
+print(f"Retained non-zeros: {{compressed}}")
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 8px;">CLI Pareto Frontier Evaluation:</div>
+          <div class="code-box">
+# Run full automated Pareto frontier sweep on local model
+quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3,bitnet --device cuda
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>
+      <strong>QuantBench 🔬</strong> &bull; Crafted by <a href="https://github.com/Prajwal7-2002" target="_blank">Prajwal Pujari</a> &bull;
+      Zero-Cold-Start Static Web Space &bull;
+      <a href="https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto" target="_blank">Hugging Face Dataset</a> &bull;
+      <a href="https://prajwal7-2002.github.io/quantbench/" target="_blank">Official Documentation</a>
+    </p>
+  </footer>
+
+  <script>
+    // Embedded Datasets
+    const PARETO_DATA = {pareto_json_str};
+    const LAYER_DATA = {layer_json_str};
+
+    let currentYMetric = 'sqnr_db';
+    let currentXMetric = 'compression_ratio';
+    let currentFilter = 'all';
+    let currentSortCol = 'compression_ratio';
+    let sortAsc = false;
+
+    // Tab Navigation
+    function switchTab(tabId) {{
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      event.currentTarget.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+
+      if (tabId === 'pareto') {{
+        renderParetoPlot();
+      }}
+    }}
+
+    // Metric Toggle for Pareto Plot
+    function setPlotMetric(metric) {{
+      currentYMetric = metric;
+      document.getElementById('btn-y-sqnr').classList.toggle('active', metric === 'sqnr_db');
+      document.getElementById('btn-y-ppl').classList.toggle('active', metric === 'perplexity_delta');
+      document.getElementById('btn-y-recon').classList.toggle('active', metric === 'reconstruction_error');
+      renderParetoPlot();
+    }}
+
+    function setPlotX(metric) {{
+      currentXMetric = metric;
+      document.getElementById('btn-x-comp').classList.toggle('active', metric === 'compression_ratio');
+      document.getElementById('btn-x-bits').classList.toggle('active', metric === 'bits_per_weight');
+      renderParetoPlot();
+    }}
+
+    // Render Pareto SVG Scatter Plot
+    function renderParetoPlot() {{
+      const svg = document.getElementById('pareto-svg');
+      const box = document.getElementById('chart-box');
+      const w = box.clientWidth || 900;
+      const h = box.clientHeight || 480;
+      svg.setAttribute('viewBox', `0 0 ${{w}} ${{h}}`);
+      svg.innerHTML = '';
+
+      const padL = 75;
+      const padR = 40;
+      const padT = 40;
+      const padB = 60;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+
+      // Extract domains
+      let xVals = PARETO_DATA.map(d => d[currentXMetric]);
+      let yVals = PARETO_DATA.map(d => d[currentYMetric]);
+
+      let minX = Math.min(...xVals);
+      let maxX = Math.max(...xVals);
+      let minY = Math.min(...yVals);
+      let maxY = Math.max(...yVals);
+
+      if (currentYMetric === 'sqnr_db') {{
+        minY = 0;
+        maxY = 105;
+      }} else if (currentYMetric === 'perplexity_delta') {{
+        minY = 0;
+        maxY = Math.max(...yVals) * 1.15;
+      }}
+
+      if (currentXMetric === 'compression_ratio') {{
+        minX = 0.8;
+        maxX = 8.0;
+      }} else {{
+        minX = 1.5;
+        maxX = 17.0;
+      }}
+
+      const scaleX = v => padL + ((v - minX) / (maxX - minX)) * plotW;
+      const scaleY = v => padT + plotH - ((v - minY) / (maxY - minY)) * plotH;
+
+      // Gridlines & Axis
+      const gridG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      gridG.setAttribute('stroke', '#1f293d');
+      gridG.setAttribute('stroke-width', '1');
+
+      // Horizontal grid lines
+      const yTicks = 5;
+      for (let i = 0; i <= yTicks; i++) {{
+        const val = minY + (i / yTicks) * (maxY - minY);
+        const yPos = scaleY(val);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', padL);
+        line.setAttribute('x2', padL + plotW);
+        line.setAttribute('y1', yPos);
+        line.setAttribute('y2', yPos);
+        gridG.appendChild(line);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', padL - 12);
+        text.setAttribute('y', yPos + 4);
+        text.setAttribute('fill', '#64748b');
+        text.setAttribute('font-size', '11');
+        text.setAttribute('font-family', 'JetBrains Mono');
+        text.setAttribute('text-anchor', 'end');
+        text.textContent = val.toFixed(currentYMetric === 'sqnr_db' ? 0 : 3);
+        svg.appendChild(text);
+      }}
+
+      // Vertical grid lines
+      const xTicks = 6;
+      for (let i = 0; i <= xTicks; i++) {{
+        const val = minX + (i / xTicks) * (maxX - minX);
+        const xPos = scaleX(val);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', xPos);
+        line.setAttribute('x2', xPos);
+        line.setAttribute('y1', padT);
+        line.setAttribute('y2', padT + plotH);
+        gridG.appendChild(line);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', xPos);
+        text.setAttribute('y', padT + plotH + 20);
+        text.setAttribute('fill', '#64748b');
+        text.setAttribute('font-size', '11');
+        text.setAttribute('font-family', 'JetBrains Mono');
+        text.setAttribute('text-anchor', 'middle');
+        text.textContent = val.toFixed(1) + (currentXMetric === 'compression_ratio' ? 'x' : 'b');
+        svg.appendChild(text);
+      }}
+      svg.appendChild(gridG);
+
+      // Axis Labels
+      const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      xLabel.setAttribute('x', padL + plotW / 2);
+      xLabel.setAttribute('y', padT + plotH + 46);
+      xLabel.setAttribute('fill', '#94a3b8');
+      xLabel.setAttribute('font-size', '12');
+      xLabel.setAttribute('font-weight', '600');
+      xLabel.setAttribute('text-anchor', 'middle');
+      xLabel.textContent = currentXMetric === 'compression_ratio' ? 'Compression Ratio (Higher = Less Memory)' : 'Bits per Weight (Lower = More Compressed)';
+      svg.appendChild(xLabel);
+
+      const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      yLabel.setAttribute('x', -(padT + plotH / 2));
+      yLabel.setAttribute('y', 22);
+      yLabel.setAttribute('transform', 'rotate(-90)');
+      yLabel.setAttribute('fill', '#94a3b8');
+      yLabel.setAttribute('font-size', '12');
+      yLabel.setAttribute('font-weight', '600');
+      yLabel.setAttribute('text-anchor', 'middle');
+      yLabel.textContent = currentYMetric === 'sqnr_db' ? 'Signal-to-Quantization-Noise Ratio (SQNR dB, Higher = Better Quality)' : (currentYMetric === 'perplexity_delta' ? 'Perplexity Delta ΔPPL (Lower = Better)' : 'L2 Reconstruction Error (Lower = Better)');
+      svg.appendChild(yLabel);
+
+      // Pareto Optimal Frontier Curve (if SQNR)
+      if (currentYMetric === 'sqnr_db' && currentXMetric === 'compression_ratio') {{
+        // Filter Pareto dominant points
+        const paretoPoints = [
+          PARETO_DATA.find(d => d.scheme === 'fp16'),
+          PARETO_DATA.find(d => d.scheme === 'smoothquant'),
+          PARETO_DATA.find(d => d.scheme === 'gptq'),
+          PARETO_DATA.find(d => d.scheme === 'awq'),
+          PARETO_DATA.find(d => d.scheme === 'ternary')
+        ].filter(Boolean);
+
+        paretoPoints.sort((a, b) => a.compression_ratio - b.compression_ratio);
+
+        let pathD = `M ${{scaleX(paretoPoints[0].compression_ratio)}} ${{scaleY(paretoPoints[0].sqnr_db)}}`;
+        for (let i = 1; i < paretoPoints.length; i++) {{
+          pathD += ` L ${{scaleX(paretoPoints[i].compression_ratio)}} ${{scaleY(paretoPoints[i].sqnr_db)}}`;
+        }}
+
+        const paretoPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        paretoPath.setAttribute('d', pathD);
+        paretoPath.setAttribute('fill', 'none');
+        paretoPath.setAttribute('stroke', 'rgba(16, 185, 129, 0.4)');
+        paretoPath.setAttribute('stroke-width', '2');
+        paretoPath.setAttribute('stroke-dasharray', '4,4');
+        svg.appendChild(paretoPath);
+      }}
+
+      // Plot Points
+      const tooltip = document.getElementById('plot-tooltip');
+
+      PARETO_DATA.forEach(d => {{
+        const cx = scaleX(d[currentXMetric]);
+        const cy = scaleY(d[currentYMetric]);
+
+        let col = '#10b981';
+        if (d.scheme.includes('fp16')) col = '#94a3b8';
+        else if (d.scheme.includes('int8') || d.scheme.includes('smoothquant')) col = '#10b981';
+        else if (d.scheme.includes('fp8')) col = '#06b6d4';
+        else if (d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq')) col = '#f59e0b';
+        else if (d.scheme.includes('ternary')) col = '#f43f5e';
+        else if (d.scheme.includes('sparse')) col = '#8b5cf6';
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', cx);
+        circle.setAttribute('cy', cy);
+        circle.setAttribute('r', '7');
+        circle.setAttribute('fill', col);
+        circle.setAttribute('stroke', '#0b0f19');
+        circle.setAttribute('stroke-width', '2');
+        circle.style.cursor = 'pointer';
+        circle.style.transition = 'all 0.15s ease';
+
+        circle.addEventListener('mouseenter', (e) => {{
+          circle.setAttribute('r', '11');
+          circle.setAttribute('stroke', '#fff');
+
+          tooltip.style.display = 'block';
+          tooltip.innerHTML = `
+            <div class="plot-tooltip-title">${{d.configuration}}</div>
+            <div><strong>Compression:</strong> ${{d.compression_ratio.toFixed(2)}}x (${{d.bits_per_weight}} bits/wt)</div>
+            <div><strong>SQNR:</strong> ${{d.sqnr_db.toFixed(1)}} dB</div>
+            <div><strong>Δ PPL:</strong> +${{d.perplexity_delta.toFixed(3)}}</div>
+            <div><strong>VRAM Footprint:</strong> ${{d.memory_footprint_mb}} MB (-${{d.memory_savings_pct}}%)</div>
+            <div style="margin-top:6px; color:#cbd5e1; font-size:11px;">${{d.hardware_acceleration}}</div>
+          `;
+
+          const rect = box.getBoundingClientRect();
+          let tx = e.clientX - rect.left + 15;
+          let ty = e.clientY - rect.top - 20;
+          if (tx + 260 > w) tx = e.clientX - rect.left - 260;
+          tooltip.style.left = tx + 'px';
+          tooltip.style.top = ty + 'px';
+        }});
+
+        circle.addEventListener('mouseleave', () => {{
+          circle.setAttribute('r', '7');
+          circle.setAttribute('stroke', '#0b0f19');
+          tooltip.style.display = 'none';
+        }});
+
+        circle.addEventListener('click', () => {{
+          highlightTableRow(d.configuration);
+        }});
+
+        svg.appendChild(circle);
+
+        // Dot label
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', cx + 9);
+        txt.setAttribute('y', cy + 4);
+        txt.setAttribute('fill', '#94a3b8');
+        txt.setAttribute('font-size', '10');
+        txt.setAttribute('font-family', 'Inter');
+        txt.textContent = d.scheme.toUpperCase();
+        svg.appendChild(txt);
+      }});
+    }}
+
+    // Table Rendering & Sorting
+    function renderTable() {{
+      const tbody = document.getElementById('pareto-tbody');
+      tbody.innerHTML = '';
+
+      let filtered = PARETO_DATA.filter(d => {{
+        if (currentFilter === 'int8') return d.scheme.includes('int8') || d.scheme.includes('fp8') || d.scheme.includes('smoothquant');
+        if (currentFilter === 'int4') return d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq');
+        if (currentFilter === 'subbyte') return d.scheme.includes('ternary') || d.scheme.includes('sparse');
+        return true;
+      }});
+
+      filtered.sort((a, b) => {{
+        let vA = a[currentSortCol];
+        let vB = b[currentSortCol];
+        if (typeof vA === 'string') return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        return sortAsc ? vA - vB : vB - vA;
+      }});
+
+      filtered.forEach(d => {{
+        let badgeClass = 'badge-fp16';
+        if (d.scheme.includes('int8') || d.scheme.includes('smoothquant')) badgeClass = 'badge-int8';
+        else if (d.scheme.includes('fp8')) badgeClass = 'badge-fp8';
+        else if (d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq')) badgeClass = 'badge-int4';
+        else if (d.scheme.includes('ternary')) badgeClass = 'badge-ternary';
+        else if (d.scheme.includes('sparse')) badgeClass = 'badge-sparse';
+
+        const tr = document.createElement('tr');
+        tr.id = 'row-' + d.configuration.replace(/[^a-zA-Z0-9]/g, '-');
+        tr.innerHTML = `
+          <td>
+            <strong>${{d.configuration}}</strong>
+            <span class="badge ${{badgeClass}}" style="margin-left: 6px;">${{d.scheme}}</span>
+          </td>
+          <td style="font-family:var(--font-mono);">${{d.bits_per_weight.toFixed(1)}}</td>
+          <td style="font-family:var(--font-mono); font-weight:700; color:var(--accent);">${{d.compression_ratio.toFixed(2)}}x</td>
+          <td style="font-family:var(--font-mono);">${{d.memory_footprint_mb}} MB</td>
+          <td style="font-family:var(--font-mono); font-weight:700;">${{d.sqnr_db.toFixed(1)}} dB</td>
+          <td style="font-family:var(--font-mono); color:${{d.perplexity_delta > 0.1 ? 'var(--rose)' : 'var(--text-main)'}};">+${{d.perplexity_delta.toFixed(3)}}</td>
+          <td style="font-size:12px; color:var(--text-muted);">${{d.hardware_acceleration}}</td>
+          <td style="font-size:12px; color:var(--text-muted);">${{d.primary_use_case}}</td>
+        `;
+        tbody.appendChild(tr);
+      }});
+    }}
+
+    function filterTable(cat) {{
+      currentFilter = cat;
+      document.querySelectorAll('#tab-pareto .control-group button').forEach(b => {{
+        if (b.innerText.toLowerCase().includes(cat) || (cat === 'all' && b.innerText.includes('All'))) {{
+          b.classList.add('active');
+        }} else if (b.innerText.includes('INT8') || b.innerText.includes('INT4') || b.innerText.includes('BitNet') || b.innerText.includes('All')) {{
+          b.classList.remove('active');
+        }}
+      }});
+      renderTable();
+    }}
+
+    function sortTable(col) {{
+      if (currentSortCol === col) {{
+        sortAsc = !sortAsc;
+      }} else {{
+        currentSortCol = col;
+        sortAsc = false;
+      }}
+      renderTable();
+    }}
+
+    function highlightTableRow(configName) {{
+      const id = 'row-' + configName.replace(/[^a-zA-Z0-9]/g, '-');
+      const el = document.getElementById(id);
+      if (el) {{
+        el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+        el.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+        setTimeout(() => {{
+          el.style.backgroundColor = '';
+        }}, 2000);
+      }}
+    }}
+
+    // ==========================================
+    // TAB 2: SUB-BYTE BIT PACKING VISUALIZER
+    // ==========================================
+    let bitnetVals = [-1, 0, 1, -1];
+
+    function setPackingMode(mode) {{
+      document.getElementById('packing-mode-bitnet').style.display = mode === 'bitnet' ? 'block' : 'none';
+      document.getElementById('packing-mode-int4').style.display = mode === 'int4' ? 'block' : 'none';
+      document.getElementById('packing-mode-sparse').style.display = mode === 'sparse' ? 'block' : 'none';
+
+      document.getElementById('btn-mode-bitnet').classList.toggle('active', mode === 'bitnet');
+      document.getElementById('btn-mode-int4').classList.toggle('active', mode === 'int4');
+      document.getElementById('btn-mode-sparse').classList.toggle('active', mode === 'sparse');
+
+      if (mode === 'bitnet') updateBitNet();
+      else if (mode === 'int4') updateINT4();
+      else if (mode === 'sparse') updateSparse();
+    }}
+
+    function renderBitNetSlots() {{
+      const container = document.getElementById('bitnet-slots');
+      container.innerHTML = '';
+
+      for (let i = 0; i < 4; i++) {{
+        const row = document.createElement('div');
+        row.className = 'slot-row';
+        row.innerHTML = `
+          <div class="slot-label">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background: ${{getSlotColor(i)}};"></span>
+            <span>Slot ${{i}} (w${{i}}):</span>
+          </div>
+          <div class="slot-options">
+            <button class="val-btn val-neg ${{bitnetVals[i] === -1 ? 'active' : ''}}" onclick="setBitNetSlot(${{i}}, -1)">-1</button>
+            <button class="val-btn val-zero ${{bitnetVals[i] === 0 ? 'active' : ''}}" onclick="setBitNetSlot(${{i}}, 0)"> 0</button>
+            <button class="val-btn val-pos ${{bitnetVals[i] === 1 ? 'active' : ''}}" onclick="setBitNetSlot(${{i}}, 1)">+1</button>
+          </div>
+        `;
+        container.appendChild(row);
+      }}
+    }}
+
+    function getSlotColor(idx) {{
+      return ['#10b981', '#06b6d4', '#f59e0b', '#f43f5e'][idx];
+    }}
+
+    function setBitNetSlot(idx, val) {{
+      bitnetVals[idx] = val;
+      renderBitNetSlots();
+      updateBitNet();
+    }}
+
+    function randomizeBitNet() {{
+      const opts = [-1, 0, 1];
+      bitnetVals = [
+        opts[Math.floor(Math.random() * 3)],
+        opts[Math.floor(Math.random() * 3)],
+        opts[Math.floor(Math.random() * 3)],
+        opts[Math.floor(Math.random() * 3)]
+      ];
+      renderBitNetSlots();
+      updateBitNet();
+    }}
+
+    function setBitNetPreset(arr) {{
+      bitnetVals = [...arr];
+      renderBitNetSlots();
+      updateBitNet();
+    }}
+
+    function updateBitNet() {{
+      // Biased offset u = v + 1
+      const u0 = bitnetVals[0] + 1;
+      const u1 = bitnetVals[1] + 1;
+      const u2 = bitnetVals[2] + 1;
+      const u3 = bitnetVals[3] + 1;
+
+      const packedByte = (u0 & 0x03) | ((u1 & 0x03) << 2) | ((u2 & 0x03) << 4) | ((u3 & 0x03) << 6);
+
+      document.getElementById('bitnet-dec').textContent = packedByte;
+      document.getElementById('bitnet-hex').textContent = '0x' + packedByte.toString(16).toUpperCase().padStart(2, '0');
+
+      // Unpack arithmetic
+      const unp0 = (packedByte & 0x03) - 1;
+      const unp1 = ((packedByte >> 2) & 0x03) - 1;
+      const unp2 = ((packedByte >> 4) & 0x03) - 1;
+      const unp3 = ((packedByte >> 6) & 0x03) - 1;
+
+      document.getElementById('bitnet-unpack-verify').innerHTML = `
+        Unpacked: [${{unp0}}, ${{unp1}}, ${{unp2}}, ${{unp3}}] &bull; Exactly matches inputs [${{bitnetVals.join(', ')}}]
+      `;
+
+      // 8-bit visual register
+      const bitsContainer = document.getElementById('bitnet-bits');
+      bitsContainer.innerHTML = '';
+
+      for (let b = 7; b >= 0; b--) {{
+        const bitVal = (packedByte >> b) & 1;
+        const slotIdx = Math.floor(b / 2);
+
+        const cell = document.createElement('div');
+        cell.className = 'bit-cell' + (bitVal ? ' val-1' : '');
+        cell.style.borderColor = getSlotColor(slotIdx);
+        cell.innerHTML = `
+          <div class="bit-idx">b${{b}} (w${{slotIdx}})</div>
+          <div class="bit-val">${{bitVal}}</div>
+        `;
+        bitsContainer.appendChild(cell);
+      }}
+    }}
+
+    // INT4 Visualizer
+    function updateINT4() {{
+      const low = parseInt(document.getElementById('int4-low-slider').value);
+      const high = parseInt(document.getElementById('int4-high-slider').value);
+
+      document.getElementById('int4-low-val').textContent = low;
+      document.getElementById('int4-high-val').textContent = high;
+
+      const uLow = low & 0x0F;
+      const uHigh = high & 0x0F;
+      const packedByte = uLow | (uHigh << 4);
+
+      document.getElementById('int4-dec').textContent = packedByte;
+      document.getElementById('int4-hex').textContent = '0x' + packedByte.toString(16).toUpperCase().padStart(2, '0');
+
+      // Sign extension unpack
+      let unpLow = packedByte & 0x0F;
+      let unpHigh = (packedByte >> 4) & 0x0F;
+      if (unpLow >= 8) unpLow -= 16;
+      if (unpHigh >= 8) unpHigh -= 16;
+
+      document.getElementById('int4-unpack-verify').innerHTML = `
+        Sign-extended: Low = ${{unpLow}}, High = ${{unpHigh}} &bull; Matches [${{low}}, ${{high}}]
+      `;
+
+      const bitsContainer = document.getElementById('int4-bits');
+      bitsContainer.innerHTML = '';
+
+      for (let b = 7; b >= 0; b--) {{
+        const bitVal = (packedByte >> b) & 1;
+        const isHighNibble = b >= 4;
+
+        const cell = document.createElement('div');
+        cell.className = 'bit-cell' + (bitVal ? ' val-1' : '');
+        cell.style.borderColor = isHighNibble ? 'var(--cyan)' : 'var(--amber)';
+        cell.innerHTML = `
+          <div class="bit-idx">b${{b}} (${{isHighNibble ? 'High' : 'Low'}})</div>
+          <div class="bit-val">${{bitVal}}</div>
+        `;
+        bitsContainer.appendChild(cell);
+      }}
+    }}
+
+    function setINT4Preset(l, h) {{
+      document.getElementById('int4-low-slider').value = l;
+      document.getElementById('int4-high-slider').value = h;
+      updateINT4();
+    }}
+
+    // 2:4 Structured Sparsity Visualizer
+    function updateSparse() {{
+      const w0 = parseFloat(document.getElementById('sparse-w0').value) || 0;
+      const w1 = parseFloat(document.getElementById('sparse-w1').value) || 0;
+      const w2 = parseFloat(document.getElementById('sparse-w2').value) || 0;
+      const w3 = parseFloat(document.getElementById('sparse-w3').value) || 0;
+
+      const arr = [
+        {{ idx: 0, val: w0, abs: Math.abs(w0) }},
+        {{ idx: 1, val: w1, abs: Math.abs(w1) }},
+        {{ idx: 2, val: w2, abs: Math.abs(w2) }},
+        {{ idx: 3, val: w3, abs: Math.abs(w3) }}
+      ];
+
+      arr.sort((a, b) => b.abs - a.abs);
+      const kept = [arr[0], arr[1]].sort((a, b) => a.idx - b.idx);
+      const pruned = [arr[2], arr[3]].sort((a, b) => a.idx - b.idx);
+
+      document.getElementById('sparse-decision-text').innerHTML = `
+        Retained top-2 magnitudes: <strong>w${{kept[0].idx}} (${{kept[0].val}})</strong> and <strong>w${{kept[1].idx}} (${{kept[1].val}})</strong>.<br>
+        Pruned to zero: w${{pruned[0].idx}} (${{pruned[0].val}}) and w${{pruned[1].idx}} (${{pruned[1].val}}).
+      `;
+
+      const retainedBox = document.getElementById('sparse-retained-display');
+      retainedBox.innerHTML = '';
+      kept.forEach(k => {{
+        const b = document.createElement('div');
+        b.style.background = '#1e293b';
+        b.style.border = '1px solid var(--accent)';
+        b.style.color = 'var(--accent)';
+        b.style.padding = '8px 14px';
+        b.style.borderRadius = '6px';
+        b.style.fontFamily = 'var(--font-mono)';
+        b.style.fontWeight = '700';
+        b.innerHTML = `w${{k.idx}} = ${{k.val}}`;
+        retainedBox.appendChild(b);
+      }});
+
+      const idx0 = kept[0].idx;
+      const idx1 = kept[1].idx;
+      const nibble = (idx0 & 0x03) | ((idx1 & 0x03) << 2);
+
+      document.getElementById('sparse-indices-val').textContent = `[${{idx0}}, ${{idx1}}]`;
+      document.getElementById('sparse-nibble-hex').textContent = '0x' + nibble.toString(16).toUpperCase() + ` (0b${{nibble.toString(2).padStart(4, '0')}})`;
+    }}
+
+    function setSparsePreset(vals) {{
+      document.getElementById('sparse-w0').value = vals[0];
+      document.getElementById('sparse-w1').value = vals[1];
+      document.getElementById('sparse-w2').value = vals[2];
+      document.getElementById('sparse-w3').value = vals[3];
+      updateSparse();
+    }}
+
+    function randomizeSparse() {{
+      const r = () => parseFloat(((Math.random() - 0.5) * 2).toFixed(2));
+      setSparsePreset([r(), r(), r(), r()]);
+    }}
+
+    // ==========================================
+    // TAB 3: LAYER SENSITIVITY SIMULATOR
+    // ==========================================
+    let currentLayerScheme = 'INT8 AbsMax';
+
+    function setLayerScheme(scheme) {{
+      currentLayerScheme = scheme;
+      document.getElementById('btn-ls-int8').classList.toggle('active', scheme === 'INT8 AbsMax');
+      document.getElementById('btn-ls-int4').classList.toggle('active', scheme === 'INT4 Blockwise (G=128)');
+      document.getElementById('btn-ls-awq').classList.toggle('active', scheme === 'INT4 AWQ');
+      document.getElementById('btn-ls-bitnet').classList.toggle('active', scheme === 'BitNet 1.58b');
+      renderLayerBars();
+    }}
+
+    function renderLayerBars() {{
+      const container = document.getElementById('layer-bars-container');
+      container.innerHTML = '';
+
+      const rows = LAYER_DATA.filter(d => d.quantization_scheme === currentLayerScheme);
+
+      rows.forEach(d => {{
+        const row = document.createElement('div');
+        row.className = 'layer-bar-row';
+
+        let tierColor = 'var(--accent)';
+        if (d.sensitivity_tier === 'Critical') tierColor = 'var(--rose)';
+        else if (d.sensitivity_tier === 'Moderate') tierColor = 'var(--amber)';
+
+        const pct = Math.max(5, Math.min(100, (d.layer_sqnr_db / 45) * 100));
+
+        row.innerHTML = `
+          <div class="layer-info">
+            <span class="layer-name">
+              <span class="badge" style="background:${{tierColor}}22; color:${{tierColor}}; border:1px solid ${{tierColor}}44;">${{d.sensitivity_tier}}</span>
+              ${{d.layer_component}}
+            </span>
+            <span class="layer-metric">${{d.layer_sqnr_db.toFixed(1)}} dB</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: ${{pct}}%; background: ${{tierColor}};"></div>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
+            ${{d.engineering_guidance}}
+          </div>
+        `;
+        container.appendChild(row);
+      }});
+    }}
+
+    // ==========================================
+    // TAB 4: LIVE QUANTIZER & SQNR LAB
+    // ==========================================
+    function loadLabPreset(type) {{
+      let tensor = [];
+      if (type === 'normal') {{
+        // Gaussian ~ N(0, 1)
+        tensor = [0.12, -0.45, 0.88, -1.24, 0.33, 0.67, -0.05, 1.42, -0.78, 0.21, -0.95, 0.54];
+      }} else if (type === 'outlier') {{
+        // LLaMA Outlier pattern with extreme +/- 18.5
+        tensor = [0.12, -0.45, 18.42, -0.31, 0.19, -17.85, 0.22, -0.15, 0.44, 0.08, -0.25, 0.11];
+      }} else if (type === 'uniform') {{
+        tensor = [-0.9, -0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.5, 0.7, 0.9];
+      }} else if (type === 'laplace') {{
+        tensor = [0.02, -0.01, 2.85, -0.04, 0.01, -3.12, 0.05, -0.02, 0.03, -0.01];
+      }}
+
+      document.getElementById('lab-input-tensor').value = tensor.join(', ');
+      runLabQuantize();
+    }}
+
+    function runLabQuantize() {{
+      const text = document.getElementById('lab-input-tensor').value;
+      const method = document.getElementById('lab-method-select').value;
+      const raw = text.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+
+      if (raw.length === 0) return;
+
+      let scale = 1.0;
+      let zeroPoint = 0;
+      let quant = [];
+      let dequant = [];
+
+      if (method === 'int8_sym') {{
+        const maxVal = Math.max(...raw.map(Math.abs));
+        scale = maxVal > 0 ? maxVal / 127.0 : 1.0;
+        zeroPoint = 0;
+        quant = raw.map(x => Math.max(-127, Math.min(127, Math.round(x / scale))));
+        dequant = quant.map(q => q * scale);
+      }} else if (method === 'int8_asym') {{
+        const minVal = Math.min(...raw);
+        const maxVal = Math.max(...raw);
+        scale = (maxVal - minVal) > 0 ? (maxVal - minVal) / 255.0 : 1.0;
+        zeroPoint = Math.round(-minVal / scale);
+        quant = raw.map(x => Math.max(0, Math.min(255, Math.round(x / scale) + zeroPoint)));
+        dequant = quant.map(q => (q - zeroPoint) * scale);
+      }} else if (method === 'int4_sym') {{
+        const maxVal = Math.max(...raw.map(Math.abs));
+        scale = maxVal > 0 ? maxVal / 7.0 : 1.0;
+        zeroPoint = 0;
+        quant = raw.map(x => Math.max(-7, Math.min(7, Math.round(x / scale))));
+        dequant = quant.map(q => q * scale);
+      }} else if (method === 'bitnet') {{
+        const meanAbs = raw.reduce((sum, v) => sum + Math.abs(v), 0) / raw.length;
+        scale = meanAbs > 0 ? meanAbs : 1.0;
+        zeroPoint = 0;
+        quant = raw.map(x => Math.max(-1, Math.min(1, Math.round(x / scale))));
+        dequant = quant.map(q => q * scale);
+      }}
+
+      // Metrics
+      let sigPow = 0;
+      let noisePow = 0;
+      for (let i = 0; i < raw.length; i++) {{
+        sigPow += raw[i] * raw[i];
+        const err = raw[i] - dequant[i];
+        noisePow += err * err;
+      }}
+
+      let sqnrDb = noisePow > 1e-12 ? 10 * Math.log10(sigPow / noisePow) : 99.9;
+      if (sqnrDb < 0) sqnrDb = 0;
+
+      document.getElementById('lab-scale-val').textContent = scale.toFixed(4);
+      document.getElementById('lab-zp-val').textContent = zeroPoint;
+      document.getElementById('lab-sqnr-val').textContent = sqnrDb.toFixed(2) + ' dB';
+
+      // Table inspect
+      const tbody = document.getElementById('lab-inspect-tbody');
+      tbody.innerHTML = '';
+
+      for (let i = 0; i < Math.min(raw.length, 12); i++) {{
+        const err = raw[i] - dequant[i];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-family:var(--font-mono); color:var(--text-muted);">${{i}}</td>
+          <td style="font-family:var(--font-mono); font-weight:600;">${{raw[i].toFixed(3)}}</td>
+          <td style="font-family:var(--font-mono); color:var(--cyan);">${{quant[i]}}</td>
+          <td style="font-family:var(--font-mono);">${{dequant[i].toFixed(3)}}</td>
+          <td style="font-family:var(--font-mono); color:${{Math.abs(err) > 0.1 ? 'var(--rose)' : 'var(--text-muted)'}};">${{err >= 0 ? '+' : ''}}${{err.toFixed(4)}}</td>
+        `;
+        tbody.appendChild(tr);
+      }}
+    }}
+
+    function copyCode(btn) {{
+      const text = btn.parentElement.innerText.replace('Copy', '').trim();
+      navigator.clipboard.writeText(text);
+      btn.textContent = '✓ Copied';
+      setTimeout(() => {{
+        btn.textContent = 'Copy';
+      }}, 2000);
+    }}
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {{
+      renderParetoPlot();
+      renderTable();
+      renderBitNetSlots();
+      updateBitNet();
+      updateINT4();
+      updateSparse();
+      renderLayerBars();
+      loadLabPreset('normal');
+
+      window.addEventListener('resize', () => {{
+        renderParetoPlot();
+      }});
+    }});
+  </script>
+</body>
+</html>"""
+    return html_content
+
+
+def main():
+    root = Path(__file__).resolve().parent.parent
+
+    # 1. Load benchmark datasets
+    pareto_json_path = root / "hf_dataset" / "pareto_frontier.json"
+    layer_json_path = root / "hf_dataset" / "layer_sensitivity.json"
+
+    if not pareto_json_path.exists() or not layer_json_path.exists():
+        raise FileNotFoundError("Dataset JSON files not found. Run generate_pareto_dataset.py first!")
+
+    pareto_data = json.loads(pareto_json_path.read_text(encoding="utf-8"))
+    layer_data = json.loads(layer_json_path.read_text(encoding="utf-8"))
+
+    print(f"Loaded {len(pareto_data)} Pareto configurations and {len(layer_data)} layer sensitivity entries.")
+
+    # 2. Generate HTML
+    html_content = generate_html(pareto_data, layer_data)
+
+    # 3. Write to Hugging Face Space directory
+    space_dir = root / "hf_space"
+    space_dir.mkdir(parents=True, exist_ok=True)
+    space_html_path = space_dir / "index.html"
+    space_html_path.write_text(html_content, encoding="utf-8")
+    print(f"✓ Wrote {space_html_path} ({len(html_content)} bytes)")
+
+    # Space README.md
+    space_readme = r"""---
+title: QuantBench - LLM Sub-Byte Quantization Studio
+emoji: 🔬
+colorFrom: green
+colorTo: blue
+sdk: static
+pinned: false
+license: apache-2.0
+short_description: LLM quantization Pareto frontier & sub-byte bit-packer.
+---
+
+# QuantBench 🔬 LLM Sub-Byte Quantization & Pareto Frontier Studio
+
+Interactive pre-flight analytical quantization exploration, BitNet 1.58b ternary sub-byte bitshift registers, Ampere 2:4 structured sparsity visualizer, and Transformer layer sensitivity analyzer.
+
+* **GitHub Repository:** [Prajwal7-2002/quantbench](https://github.com/Prajwal7-2002/quantbench)
+* **PyPI:** [`pip install quantbench`](https://pypi.org/project/quantbench/)
+* **HF Benchmark Dataset:** [prajwalpujari16/quantbench-pareto](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)
+* **Documentation:** [prajwal7-2002.github.io/quantbench](https://prajwal7-2002.github.io/quantbench/)
+* **Author:** Prajwal Pujari ([@Prajwal7-2002](https://github.com/Prajwal7-2002))
+"""
+    (space_dir / "README.md").write_text(space_readme, encoding="utf-8")
+    print(f"✓ Wrote {space_dir / 'README.md'}")
+
+    # 4. Write to docs/studio.html for GitHub Pages
+    docs_dir = root / "docs"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    docs_html_path = docs_dir / "studio.html"
+    docs_html_path.write_text(html_content, encoding="utf-8")
+    print(f"✓ Wrote {docs_html_path}")
+
+    # 5. Copy to brain artifact directory for preview
+    brain_dir = Path(r"C:\Users\ADMIN\.gemini\antigravity\brain\b4bc2e58-a6e6-4dec-a3a6-5013100d2137")
+    if brain_dir.exists():
+        artifact_path = brain_dir / "quantbench_studio_preview.html"
+        artifact_path.write_text(html_content, encoding="utf-8")
+        print(f"✓ Wrote artifact preview: {artifact_path}")
+
+    print("\n🎉 QuantBench Interactive Static Studio build completed successfully!")
+
+
+if __name__ == "__main__":
+    main()

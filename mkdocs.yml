@@ -44,6 +44,7 @@ extra_javascript:
 
 nav:
   - Overview: index.md
+  - Interactive Studio: studio.html
   - Mathematical Foundations: math-foundations.md
   - Sub-Byte Bit-Packing: bit-packing.md
   - 2:4 Structured Sparsity: sparsity-24.md
