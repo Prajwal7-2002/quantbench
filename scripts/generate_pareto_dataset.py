@@ -339,6 +339,16 @@ tags:
 - benchmark
 - evaluation
 pretty_name: "QuantBench: LLM Quantization Quality vs Compression Pareto Benchmark"
+configs:
+- config_name: pareto_frontier
+  data_files:
+  - split: train
+    path: pareto_frontier.json
+  default: true
+- config_name: layer_sensitivity
+  data_files:
+  - split: train
+    path: layer_sensitivity.json
 ---
 
 # ⚡ QuantBench: LLM Quantization Quality vs. Compression Pareto Benchmark
