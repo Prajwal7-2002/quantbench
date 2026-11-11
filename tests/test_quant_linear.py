@@ -1,6 +1,7 @@
 """Unit tests for QuantLinear drop-in module and model conversion runtimes."""
 
 import io
+import sys
 
 import pytest
 import torch
@@ -190,6 +191,10 @@ class TestModelConvert:
         assert cos_sim > 0.95
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32" and not torch.cuda.is_available(),
+    reason="PyTorch CPU half-precision forward causes 0xc000001d on Windows CI VMs without AVX512-FP16",
+)
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float16])
 @pytest.mark.parametrize("scheme", ["int8", "int4", "ternary"])
 def test_half_precision_biased_model_converts_and_runs(dtype, scheme):
