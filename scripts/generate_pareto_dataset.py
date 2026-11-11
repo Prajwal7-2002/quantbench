@@ -4,23 +4,16 @@ import csv
 import json
 import math
 from pathlib import Path
-from typing import Any, Dict, List
 
 import torch
 import torch.nn as nn
 
 from quantbench.eval.perplexity import compute_sliding_window_perplexity
-from quantbench.eval.sqnr import compute_sqnr
-from quantbench.nn.model_convert import convert_model_to_quant
-from quantbench.nn.quant_linear import QuantLinear
-from quantbench.quant.affine import quantize_absmax, dequantize_absmax
-from quantbench.quant.blockwise import quantize_blockwise, dequantize_blockwise
-from quantbench.quant.fp8 import FP8Format, quantize_fp8, dequantize_fp8
-from quantbench.quant.packing.sparse_pack import prune_and_compress_2_4
-from quantbench.quant.packing.ternary_pack import pack_ternary, unpack_ternary
 
 
-def build_evaluation_model(vocab_size: int = 256, d_model: int = 128, n_layers: int = 2) -> nn.Module:
+def build_evaluation_model(
+    vocab_size: int = 256, d_model: int = 128, n_layers: int = 2
+) -> nn.Module:
     """Build a deterministic transformer module for reproducible benchmark measurements."""
     torch.manual_seed(42)
 
@@ -278,13 +271,33 @@ def main():
 
     # 2. Layer Sensitivity Benchmark
     layer_types = [
-        ("Attention Query (q_proj)", "Critical", 2.3, "High outlier sensitivity; critical for attention entropy"),
-        ("Attention Key (k_proj)", "Critical", 2.1, "Forms attention dot-product; phase alignment sensitive"),
-        ("Attention Value (v_proj)", "Moderate", 1.4, "Linear content projection; relatively robust"),
+        (
+            "Attention Query (q_proj)",
+            "Critical",
+            2.3,
+            "High outlier sensitivity; critical for attention entropy",
+        ),
+        (
+            "Attention Key (k_proj)",
+            "Critical",
+            2.1,
+            "Forms attention dot-product; phase alignment sensitive",
+        ),
+        (
+            "Attention Value (v_proj)",
+            "Moderate",
+            1.4,
+            "Linear content projection; relatively robust",
+        ),
         ("Attention Output (out_proj)", "Moderate", 1.2, "Aggregated token representation mixing"),
         ("MLP Gate (gate_proj)", "Robust", 0.6, "Non-linear SwiGLU gating; noise resilient"),
         ("MLP Up (up_proj)", "Robust", 0.5, "Non-linear SwiGLU projection; noise resilient"),
-        ("MLP Down (down_proj)", "Critical", 1.9, "Compresses wide feed-forward representation back to d_model"),
+        (
+            "MLP Down (down_proj)",
+            "Critical",
+            1.9,
+            "Compresses wide feed-forward representation back to d_model",
+        ),
     ]
 
     sensitivities = []
@@ -295,14 +308,16 @@ def main():
             ("INT4 AWQ", 22.4, 3.55),
             ("BitNet 1.58b", 8.2, 7.50),
         ]:
-            sensitivities.append({
-                "layer_component": name,
-                "quantization_scheme": scheme,
-                "compression_ratio": comp,
-                "layer_sqnr_db": round(base_sqnr - delta_factor, 1),
-                "sensitivity_tier": rating,
-                "engineering_guidance": explanation,
-            })
+            sensitivities.append(
+                {
+                    "layer_component": name,
+                    "quantization_scheme": scheme,
+                    "compression_ratio": comp,
+                    "layer_sqnr_db": round(base_sqnr - delta_factor, 1),
+                    "sensitivity_tier": rating,
+                    "engineering_guidance": explanation,
+                }
+            )
 
     sens_csv = out_dir / "layer_sensitivity.csv"
     with open(sens_csv, "w", newline="", encoding="utf-8") as f:

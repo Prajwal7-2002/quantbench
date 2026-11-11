@@ -1,6 +1,7 @@
 """Upload QuantBench Static Space to Hugging Face."""
 
 from pathlib import Path
+
 from huggingface_hub import HfApi, whoami
 
 
@@ -16,7 +17,9 @@ def main():
     space_dir = root / "hf_space"
 
     if not space_dir.exists():
-        raise FileNotFoundError(f"Directory {space_dir} does not exist. Run build_static_studio.py first!")
+        raise FileNotFoundError(
+            f"Directory {space_dir} does not exist. Run build_static_studio.py first!"
+        )
 
     print(f"\nCreating and uploading Static Space: {space_id}...")
     api.create_repo(

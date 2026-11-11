@@ -1,8 +1,8 @@
 """Build standalone, zero-dependency Static Web Studio for QuantBench."""
 
 import json
-import shutil
 from pathlib import Path
+
 
 def generate_html(pareto_data: list, layer_data: list) -> str:
     pareto_json_str = json.dumps(pareto_data)
@@ -1805,12 +1805,16 @@ def main():
     layer_json_path = root / "hf_dataset" / "layer_sensitivity.json"
 
     if not pareto_json_path.exists() or not layer_json_path.exists():
-        raise FileNotFoundError("Dataset JSON files not found. Run generate_pareto_dataset.py first!")
+        raise FileNotFoundError(
+            "Dataset JSON files not found. Run generate_pareto_dataset.py first!"
+        )
 
     pareto_data = json.loads(pareto_json_path.read_text(encoding="utf-8"))
     layer_data = json.loads(layer_json_path.read_text(encoding="utf-8"))
 
-    print(f"Loaded {len(pareto_data)} Pareto configurations and {len(layer_data)} layer sensitivity entries.")
+    print(
+        f"Loaded {len(pareto_data)} Pareto configurations and {len(layer_data)} layer sensitivity entries."
+    )
 
     # 2. Generate HTML
     html_content = generate_html(pareto_data, layer_data)
@@ -1855,7 +1859,9 @@ Interactive pre-flight analytical quantization exploration, BitNet 1.58b ternary
     print(f"✓ Wrote {docs_html_path}")
 
     # 5. Copy to brain artifact directory for preview
-    brain_dir = Path(r"C:\Users\ADMIN\.gemini\antigravity\brain\b4bc2e58-a6e6-4dec-a3a6-5013100d2137")
+    brain_dir = Path(
+        r"C:\Users\ADMIN\.gemini\antigravity\brain\b4bc2e58-a6e6-4dec-a3a6-5013100d2137"
+    )
     if brain_dir.exists():
         artifact_path = brain_dir / "quantbench_studio_preview.html"
         artifact_path.write_text(html_content, encoding="utf-8")

@@ -1,6 +1,7 @@
 """Upload QuantBench Pareto benchmark dataset to Hugging Face."""
 
 from pathlib import Path
+
 from huggingface_hub import HfApi, whoami
 
 
@@ -16,7 +17,9 @@ def main():
     dataset_dir = root / "hf_dataset"
 
     if not dataset_dir.exists():
-        raise FileNotFoundError(f"Directory {dataset_dir} does not exist. Run generate_pareto_dataset.py first!")
+        raise FileNotFoundError(
+            f"Directory {dataset_dir} does not exist. Run generate_pareto_dataset.py first!"
+        )
 
     print(f"\nCreating and uploading Dataset: {dataset_id}...")
     api.create_repo(
@@ -36,4 +39,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
