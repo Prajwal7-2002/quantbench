@@ -32,3 +32,21 @@ Interactive pre-flight analytical quantization exploration, BitNet 1.58b ternary
 * **Dataset:** [prajwalpujari16/quantbench-pareto](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)
 * **PyPI:** [`pip install quantbench`](https://pypi.org/project/quantbench/)
 * **Author:** Prajwal Pujari ([@Prajwal7-2002](https://github.com/Prajwal7-2002))
+
+---
+
+### Citation & Attribution
+
+If you use QuantBench or its empirical quantization Pareto dataset in your research, compression pipelines, or publications, please cite:
+
+```bibtex
+@misc{pujari2024quantbench,
+  author = {Pujari, Prajwal},
+  title = {QuantBench: Sub-Byte LLM Quantization and Quality-Compression Pareto Benchmark},
+  year = {2024},
+  publisher = {Hugging Face},
+  howpublished = {\url{https://huggingface.co/spaces/prajwalpujari16/quantbench}},
+  url = {https://github.com/Prajwal7-2002/quantbench}
+}
+```
+
