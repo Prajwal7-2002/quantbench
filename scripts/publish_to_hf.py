@@ -18,7 +18,7 @@ def main():
 
     if not dataset_dir.exists():
         raise FileNotFoundError(
-            f"Directory {dataset_dir} does not exist. Run generate_pareto_dataset.py first!"
+            f"Directory {dataset_dir} does not exist. Run scripts/measure_real_pareto.py first!"
         )
 
     print(f"\nCreating and uploading Dataset: {dataset_id}...")

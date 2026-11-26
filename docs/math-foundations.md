@@ -45,7 +45,8 @@ Per-tensor quantization uses a single scale $s$ for an entire weight matrix. A s
 
 Block-wise quantization slices the matrix into independent groups of size $G \in \{32, 64, 128\}$:
 * Each block computes an independent scale $s_k$ and zero-point $z_k$.
-* For $G = 128$, scale metadata adds only $16 / 128 = 0.125$ bits per weight, providing near-FP16 fidelity with INT4 weights.
+* With a 16-bit scale and a 16-bit zero-point per group, $G = 128$ adds $32 / 128 = 0.25$ bits per weight (about 4.25 bits in total, 3.76x smaller than BF16).
+* Smaller groups track outliers better at the cost of more metadata. On Qwen2.5-0.5B, round-to-nearest INT4 raised perplexity by +18% at $G = 32$ and +30% at $G = 128$ ([measured dataset](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)), so plain INT4 is not near-lossless on small models; calibrated methods such as AWQ and GPTQ aim to close that gap.
 
 ---
 

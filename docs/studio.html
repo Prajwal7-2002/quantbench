@@ -555,8 +555,8 @@
       <a class="btn-link" href="https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto" target="_blank">
         🤗 HF Dataset
       </a>
-      <a class="btn-link" href="https://pypi.org/project/quantbench/" target="_blank">
-        📦 PyPI v0.3.2
+      <a class="btn-link" href="https://pypi.org/project/quantbench-engine/" target="_blank">
+        📦 PyPI v0.1.2
       </a>
       <a class="btn-link" href="https://github.com/Prajwal7-2002/quantbench" target="_blank">
         ★ GitHub
@@ -572,23 +572,23 @@
     <!-- Hero -->
     <div class="hero">
       <div>
-        <h1 class="hero-h1">Empirical Quantization Pareto Frontier & Sub-Byte Bit-Packing</h1>
+        <h1 class="hero-h1">Measured Quantization Pareto Frontier & Sub-Byte Bit-Packing</h1>
         <p class="hero-p">
-          Explore quality vs. compression Pareto curves, simulate BitNet 1.58b ternary and INT4 nibble bitshift registers, assess Transformer layer sensitivity, and inspect exact reconstruction SQNR in real time.
+          Quality vs. compression measured on <strong>Qwen/Qwen2.5-0.5B-Instruct</strong> (NVIDIA GeForce RTX 3050 6GB Laptop GPU). See how ternary, INT4 and 2:4 values pack into bytes, compare per-layer sensitivity, and compute exact SQNR on your own tensors.
         </p>
       </div>
       <div class="hero-stats">
         <div class="stat-box">
-          <div class="stat-val" id="stat-configs">12</div>
-          <div class="stat-lbl">Configurations</div>
+          <div class="stat-val" id="stat-configs">7</div>
+          <div class="stat-lbl">Measured configs</div>
         </div>
         <div class="stat-box">
-          <div class="stat-val">7.50x</div>
-          <div class="stat-lbl">Max Compression</div>
+          <div class="stat-val">2.11x</div>
+          <div class="stat-lbl">INT4 G=128 model size (+30.09% PPL)</div>
         </div>
         <div class="stat-box">
-          <div class="stat-val">+0.009</div>
-          <div class="stat-lbl">INT8 ΔPPL</div>
+          <div class="stat-val">+0.36%</div>
+          <div class="stat-lbl">INT8 perplexity change</div>
         </div>
       </div>
     </div>
@@ -613,8 +613,7 @@
           <div class="control-group">
             <span style="font-size:12px; color:var(--text-muted);">Y-Axis:</span>
             <button class="pill-btn active" id="btn-y-sqnr" onclick="setPlotMetric('sqnr_db')">SQNR (dB)</button>
-            <button class="pill-btn" id="btn-y-ppl" onclick="setPlotMetric('perplexity_delta')">Δ Perplexity</button>
-            <button class="pill-btn" id="btn-y-recon" onclick="setPlotMetric('reconstruction_error')">L2 Error</button>
+            <button class="pill-btn" id="btn-y-ppl" onclick="setPlotMetric('perplexity')">Perplexity (log)</button>
             <span style="font-size:12px; color:var(--text-muted); margin-left: 10px;">X-Axis:</span>
             <button class="pill-btn active" id="btn-x-comp" onclick="setPlotX('compression_ratio')">Compression Ratio</button>
             <button class="pill-btn" id="btn-x-bits" onclick="setPlotX('bits_per_weight')">Bits / Weight</button>
@@ -631,13 +630,13 @@
         <div class="card-header">
           <div>
             <div class="card-title">Benchmark Configurations Table</div>
-            <div class="card-sub">Measured on deterministic Transformer evaluation block across 512 calibration tokens</div>
+            <div class="card-sub">Measured on Qwen/Qwen2.5-0.5B-Instruct (NVIDIA GeForce RTX 3050 6GB Laptop GPU). Perplexity on Python standard-library source of argparse, statistics and textwrap. Decode speed uses quantbench's reference runtime, which dequantizes weights every forward pass.</div>
           </div>
-          <div class="control-group">
-            <button class="pill-btn active" onclick="filterTable('all')">All (12)</button>
-            <button class="pill-btn" onclick="filterTable('int8')">INT8 / FP8</button>
-            <button class="pill-btn" onclick="filterTable('int4')">INT4 / AWQ / GPTQ</button>
-            <button class="pill-btn" onclick="filterTable('subbyte')">BitNet / 2:4 Sparsity</button>
+          <div class="control-group" id="table-filters">
+            <button class="pill-btn active" data-filter="all" onclick="filterTable('all')">All (7)</button>
+            <button class="pill-btn" data-filter="int8" onclick="filterTable('int8')">INT8</button>
+            <button class="pill-btn" data-filter="int4" onclick="filterTable('int4')">INT4</button>
+            <button class="pill-btn" data-filter="subbyte" onclick="filterTable('subbyte')">Ternary / 2:4</button>
           </div>
         </div>
 
@@ -647,12 +646,11 @@
               <tr>
                 <th onclick="sortTable('configuration')">Configuration ⇕</th>
                 <th onclick="sortTable('bits_per_weight')">Bits / Wt ⇕</th>
-                <th onclick="sortTable('compression_ratio')">Ratio ⇕</th>
-                <th onclick="sortTable('memory_footprint_mb')">VRAM (MB) ⇕</th>
-                <th onclick="sortTable('sqnr_db')">SQNR (dB) ⇕</th>
-                <th onclick="sortTable('perplexity_delta')">Δ PPL ⇕</th>
-                <th>Hardware Acceleration</th>
-                <th>Primary Use Case</th>
+                <th onclick="sortTable('compression_ratio')">Linear-layer ratio ⇕</th>
+                <th onclick="sortTable('memory_footprint_mb')">Model VRAM (MB) ⇕</th>
+                <th onclick="sortTable('sqnr_db')">Weight SQNR (dB) ⇕</th>
+                <th onclick="sortTable('perplexity_delta_pct')">Perplexity change ⇕</th>
+                <th onclick="sortTable('decode_speed_vs_bf16')">Decode vs BF16 ⇕</th>
               </tr>
             </thead>
             <tbody id="pareto-tbody"></tbody>
@@ -717,8 +715,8 @@
                     <div class="hex-lbl">Hexadecimal</div>
                   </div>
                   <div class="hex-item">
-                    <div class="hex-val" id="bitnet-savings">7.50x</div>
-                    <div class="hex-lbl">Memory Reduction</div>
+                    <div class="hex-val" id="bitnet-savings">8.00x</div>
+                    <div class="hex-lbl">vs BF16 (2-bit, before scale)</div>
                   </div>
                 </div>
 
@@ -791,7 +789,7 @@
                   </div>
                   <div class="hex-item">
                     <div class="hex-val">4.00x</div>
-                    <div class="hex-lbl">vs FP16 Footprint</div>
+                    <div class="hex-lbl">vs BF16 (before scales)</div>
                   </div>
                 </div>
 
@@ -860,7 +858,7 @@
                   </div>
                   <div class="hex-item">
                     <div class="hex-val" style="color: var(--accent);">2.00x</div>
-                    <div class="hex-lbl">Sparse Tensor Core FLOPs</div>
+                    <div class="hex-lbl">Peak math (NVIDIA spec, sparse kernels)</div>
                   </div>
                 </div>
               </div>
@@ -876,14 +874,14 @@
         <div class="card-header">
           <div>
             <div class="card-title">Transformer Layer Sensitivity Analysis</div>
-            <div class="card-sub">Layer-by-layer Signal-to-Quantization-Noise Ratio (SQNR) retention & Outlier Resilience</div>
+            <div class="card-sub">One projection type quantized at a time (all 24 layers), everything else in BF16. Bar length = measured perplexity change, scaled to the worst layer for this scheme (at least 2%).</div>
           </div>
-          <div class="control-group">
+          <div class="control-group" id="layer-scheme-buttons">
             <span style="font-size:12px; color:var(--text-muted);">Scheme:</span>
-            <button class="pill-btn active" id="btn-ls-int8" onclick="setLayerScheme('INT8 AbsMax')">INT8 AbsMax</button>
-            <button class="pill-btn" id="btn-ls-int4" onclick="setLayerScheme('INT4 Blockwise (G=128)')">INT4 Blockwise</button>
-            <button class="pill-btn" id="btn-ls-awq" onclick="setLayerScheme('INT4 AWQ')">INT4 AWQ</button>
-            <button class="pill-btn" id="btn-ls-bitnet" onclick="setLayerScheme('BitNet 1.58b')">BitNet 1.58b</button>
+            <button class="pill-btn active" data-scheme="INT8 per-channel" onclick="setLayerScheme(this.dataset.scheme)">INT8 per-channel</button>
+            <button class="pill-btn" data-scheme="INT4 G=128" onclick="setLayerScheme(this.dataset.scheme)">INT4 G=128</button>
+            <button class="pill-btn" data-scheme="2:4 structured sparsity" onclick="setLayerScheme(this.dataset.scheme)">2:4 structured sparsity</button>
+            <button class="pill-btn" data-scheme="Ternary (post-hoc)" onclick="setLayerScheme(this.dataset.scheme)">Ternary (post-hoc)</button>
           </div>
         </div>
 
@@ -895,20 +893,17 @@
           <div>
             <div style="background: #0d1322; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
               <h4 style="font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 10px;">
-                💡 Architectural Insights
+                💡 What the measurement shows
               </h4>
               <ul style="font-size: 12px; color: var(--text-muted); line-height: 1.7; padding-left: 18px;">
-                <li><strong style="color:var(--rose)">Attention Q & K Projections:</strong> Most vulnerable to quantization. Phase drift in query/key dot-products leads to exponential attention softmax dispersion.</li>
-                <li><strong style="color:var(--accent)">MLP Gate & Up Projections:</strong> Most resilient. Non-linear activations (SwiGLU/GeLU) naturally dampen small magnitude quantization errors.</li>
-                <li><strong style="color:var(--amber)">MLP Down Projection:</strong> Acts as an information bottleneck compressing representations back into d_model, requiring higher precision or finer group sizes.</li>
+                <li><strong style="color:var(--accent)">INT8 per-channel:</strong> quantizing any single projection type changed perplexity by at most 0.15%.</li>
+                <li><strong style="color:var(--amber)">INT4 G=128:</strong> MLP Down (down_proj) hurt most (+8.25%), Attention Query (q_proj) least (+0.81%). Weight SQNR was nearly identical across layer types, so SQNR alone does not predict which layers matter.</li>
+                <li><strong style="color:var(--rose)">2:4 sparsity and post-hoc ternary:</strong> large perplexity increases even when applied to one projection type (up to 2,594,285%).</li>
               </ul>
 
               <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--card-border);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--cyan); margin-bottom: 6px;">
-                  Mixed Precision Strategy:
-                </div>
                 <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
-                  Keep Q, K, and Down-proj in INT8 or INT4 AWQ (G=32), while compressing Gate, Up, and Value into aggressive 2-bit or INT4 (G=128) to achieve optimal throughput with 0 PPL degradation.
+                  Impact bands: Low &lt; 2%, Moderate &lt; 10%, High &ge; 10% perplexity change. One model and one evaluation text; effects do not simply add up when several layer types are quantized together.
                 </div>
               </div>
             </div>
@@ -1005,7 +1000,7 @@
         <div style="margin-bottom: 20px;">
           <div style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px;">Installation:</div>
           <div class="code-box">
-            pip install quantbench
+            pip install quantbench-engine
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
         </div>
@@ -1018,10 +1013,10 @@ from quantbench.quant.packing.ternary_pack import pack_ternary, unpack_ternary
 from quantbench.quant.packing.int4_pack import pack_nibbles, unpack_nibbles
 from quantbench.quant.packing.sparse_pack import prune_and_compress_2_4
 
-# 1. BitNet 1.58b Ternary Packing (7.5x compression)
+# 1. Ternary packing: 4 values per byte (8x smaller than BF16 before the scale)
 weights = torch.tensor([-1, 0, 1, -1, 0, 1, 1, -1], dtype=torch.int8)
 packed_bytes, orig_len = pack_ternary(weights, mode="2bit")
-unpacked = unpack_ternary(packed_bytes, original_length=orig_len, mode="2bit")
+unpacked = unpack_ternary(packed_bytes, original_len=orig_len, mode="2bit")
 assert torch.equal(weights, unpacked)
 
 # 2. INT4 Nibble Packing
@@ -1030,18 +1025,21 @@ low, high = unpack_nibbles(byte_val, signed=True)
 print(f"Packed byte: 0x{byte_val:02X}, Unpacked: [{low}, {high}]")
 
 # 3. Ampere 2:4 Structured Sparsity
-dense_block = torch.tensor([[0.45, -0.12, 0.88, 0.05]])
-compressed, indices = prune_and_compress_2_4(dense_block)
+dense_block = torch.tensor([[0.45, -0.12, 0.88, 0.05, 0.31, 0.02, -0.77, 0.10]])
+compressed, metadata = prune_and_compress_2_4(dense_block)
 print(f"Retained non-zeros: {compressed}")
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
         </div>
 
         <div>
-          <div style="font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 8px;">CLI Pareto Frontier Evaluation:</div>
+          <div style="font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 8px;">CLI and reproducing this dataset:</div>
           <div class="code-box">
-# Run full automated Pareto frontier sweep on local model
-quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3,bitnet --device cuda
+# Tensor-level SQNR and compression on a random weight matrix
+quantbench eval --shape 1024x1024
+
+# Re-measure the Pareto frontier on your own GPU (from a repo checkout, needs transformers)
+python scripts/measure_real_pareto.py --model Qwen/Qwen2.5-0.5B-Instruct
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
         </div>
@@ -1062,8 +1060,8 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
 
   <script>
     // Embedded Datasets
-    const PARETO_DATA = [{"configuration": "FP16 Baseline", "scheme": "fp16", "bits_per_weight": 16.0, "group_size": "None", "compression_ratio": 1.0, "memory_footprint_mb": 0.75, "memory_savings_pct": 0.0, "sqnr_db": 100.0, "reconstruction_error": 0.0, "perplexity": 295.638, "perplexity_delta": 0.0, "hardware_acceleration": "Native Tensor Core (FP16)", "primary_use_case": "Ground-truth uncompressed baseline"}, {"configuration": "INT8 AbsMax (Per-Channel)", "scheme": "int8", "bits_per_weight": 8.0, "group_size": "None", "compression_ratio": 2.0, "memory_footprint_mb": 0.38, "memory_savings_pct": 50.0, "sqnr_db": 42.1, "reconstruction_error": 0.0078, "perplexity": 295.647, "perplexity_delta": 0.009, "hardware_acceleration": "INT8 Tensor Cores (DP4A / IMMA)", "primary_use_case": "Production standard: zero quality loss serving"}, {"configuration": "INT8 SmoothQuant (alpha=0.5)", "scheme": "smoothquant", "bits_per_weight": 8.0, "group_size": "None", "compression_ratio": 2.0, "memory_footprint_mb": 0.38, "memory_savings_pct": 50.0, "sqnr_db": 45.3, "reconstruction_error": 0.0054, "perplexity": 295.642, "perplexity_delta": 0.004, "hardware_acceleration": "W8A8 Matrix Multiplication", "primary_use_case": "Outlier-heavy architectures (LLaMA/Qwen/OPT)"}, {"configuration": "FP8 E4M3FN (Simulated)", "scheme": "fp8_e4m3", "bits_per_weight": 8.0, "group_size": "None", "compression_ratio": 2.0, "memory_footprint_mb": 0.38, "memory_savings_pct": 50.0, "sqnr_db": 38.7, "reconstruction_error": 0.0116, "perplexity": 295.656, "perplexity_delta": 0.018, "hardware_acceleration": "Ada / Hopper / Blackwell FP8 Cores", "primary_use_case": "Next-gen enterprise inference (vLLM/TensorRT-LLM)"}, {"configuration": "FP8 E5M2 (Simulated)", "scheme": "fp8_e5m2", "bits_per_weight": 8.0, "group_size": "None", "compression_ratio": 2.0, "memory_footprint_mb": 0.38, "memory_savings_pct": 50.0, "sqnr_db": 31.4, "reconstruction_error": 0.0269, "perplexity": 295.68, "perplexity_delta": 0.042, "hardware_acceleration": "Hopper FP8 GEMM", "primary_use_case": "Gradient & forward pass during mixed-precision training"}, {"configuration": "INT4 Blockwise (G=128)", "scheme": "int4", "bits_per_weight": 4.5, "group_size": "128", "compression_ratio": 3.55, "memory_footprint_mb": 0.21, "memory_savings_pct": 71.8, "sqnr_db": 18.6, "reconstruction_error": 0.1174, "perplexity": 295.712, "perplexity_delta": 0.074, "hardware_acceleration": "INT4 Dequantizing Fused Kernel", "primary_use_case": "Edge deployment & consumer GPU fitting (RTX 3060/4090)"}, {"configuration": "INT4 Blockwise (G=64)", "scheme": "int4", "bits_per_weight": 5.0, "group_size": "64", "compression_ratio": 3.2, "memory_footprint_mb": 0.23, "memory_savings_pct": 68.8, "sqnr_db": 19.4, "reconstruction_error": 0.1071, "perplexity": 295.699, "perplexity_delta": 0.061, "hardware_acceleration": "INT4 Dequantizing Fused Kernel", "primary_use_case": "Higher precision edge inference (Ollama / llama.cpp Q4_K_M)"}, {"configuration": "INT4 Blockwise (G=32)", "scheme": "int4", "bits_per_weight": 6.0, "group_size": "32", "compression_ratio": 2.67, "memory_footprint_mb": 0.28, "memory_savings_pct": 62.5, "sqnr_db": 20.5, "reconstruction_error": 0.0944, "perplexity": 295.686, "perplexity_delta": 0.048, "hardware_acceleration": "Fine-grained block scaling", "primary_use_case": "Small models (<3B parameters) sensitive to quantization"}, {"configuration": "INT4 AWQ (Activation-Aware)", "scheme": "awq", "bits_per_weight": 4.5, "group_size": "128", "compression_ratio": 3.55, "memory_footprint_mb": 0.21, "memory_savings_pct": 71.8, "sqnr_db": 22.4, "reconstruction_error": 0.0758, "perplexity": 295.673, "perplexity_delta": 0.035, "hardware_acceleration": "W4A16 TensorRT-LLM / vLLM Marlin", "primary_use_case": "High-throughput serving with protected salient weights"}, {"configuration": "INT4 GPTQ (Hessian OBS)", "scheme": "gptq", "bits_per_weight": 4.5, "group_size": "128", "compression_ratio": 3.55, "memory_footprint_mb": 0.21, "memory_savings_pct": 71.8, "sqnr_db": 23.8, "reconstruction_error": 0.0645, "perplexity": 295.667, "perplexity_delta": 0.029, "hardware_acceleration": "ExLlamaV2 / Marlin Fused Kernels", "primary_use_case": "Second-order Hessian-compensated offline calibration"}, {"configuration": "BitNet 1.58b (Ternary {-1,0,+1})", "scheme": "ternary", "bits_per_weight": 2.13, "group_size": "None", "compression_ratio": 7.5, "memory_footprint_mb": 0.1, "memory_savings_pct": 86.7, "sqnr_db": 8.2, "reconstruction_error": 0.3891, "perplexity": 295.958, "perplexity_delta": 0.32, "hardware_acceleration": "Addition-only integer arithmetic (zero FP multiply)", "primary_use_case": "Extreme edge / microcontroller / zero-multiplication inference"}, {"configuration": "Ampere 2:4 Structured Sparsity", "scheme": "sparse24", "bits_per_weight": 10.0, "group_size": "None", "compression_ratio": 1.6, "memory_footprint_mb": 0.47, "memory_savings_pct": 37.5, "sqnr_db": 7.1, "reconstruction_error": 0.4416, "perplexity": 296.048, "perplexity_delta": 0.41, "hardware_acceleration": "NVIDIA Ampere / Hopper 2:4 Sparse Tensor Cores", "primary_use_case": "Hardware-accelerated 2x compute throughput via pruned weights"}];
-    const LAYER_DATA = [{"layer_component": "Attention Query (q_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 39.8, "sensitivity_tier": "Critical", "engineering_guidance": "High outlier sensitivity; critical for attention entropy"}, {"layer_component": "Attention Query (q_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 16.3, "sensitivity_tier": "Critical", "engineering_guidance": "High outlier sensitivity; critical for attention entropy"}, {"layer_component": "Attention Query (q_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 20.1, "sensitivity_tier": "Critical", "engineering_guidance": "High outlier sensitivity; critical for attention entropy"}, {"layer_component": "Attention Query (q_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 5.9, "sensitivity_tier": "Critical", "engineering_guidance": "High outlier sensitivity; critical for attention entropy"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 40.0, "sensitivity_tier": "Critical", "engineering_guidance": "Forms attention dot-product; phase alignment sensitive"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 16.5, "sensitivity_tier": "Critical", "engineering_guidance": "Forms attention dot-product; phase alignment sensitive"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 20.3, "sensitivity_tier": "Critical", "engineering_guidance": "Forms attention dot-product; phase alignment sensitive"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 6.1, "sensitivity_tier": "Critical", "engineering_guidance": "Forms attention dot-product; phase alignment sensitive"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 40.7, "sensitivity_tier": "Moderate", "engineering_guidance": "Linear content projection; relatively robust"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 17.2, "sensitivity_tier": "Moderate", "engineering_guidance": "Linear content projection; relatively robust"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 21.0, "sensitivity_tier": "Moderate", "engineering_guidance": "Linear content projection; relatively robust"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 6.8, "sensitivity_tier": "Moderate", "engineering_guidance": "Linear content projection; relatively robust"}, {"layer_component": "Attention Output (out_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 40.9, "sensitivity_tier": "Moderate", "engineering_guidance": "Aggregated token representation mixing"}, {"layer_component": "Attention Output (out_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 17.4, "sensitivity_tier": "Moderate", "engineering_guidance": "Aggregated token representation mixing"}, {"layer_component": "Attention Output (out_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 21.2, "sensitivity_tier": "Moderate", "engineering_guidance": "Aggregated token representation mixing"}, {"layer_component": "Attention Output (out_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 7.0, "sensitivity_tier": "Moderate", "engineering_guidance": "Aggregated token representation mixing"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 41.5, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU gating; noise resilient"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 18.0, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU gating; noise resilient"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 21.8, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU gating; noise resilient"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 7.6, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU gating; noise resilient"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 41.6, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU projection; noise resilient"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 18.1, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU projection; noise resilient"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 21.9, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU projection; noise resilient"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 7.7, "sensitivity_tier": "Robust", "engineering_guidance": "Non-linear SwiGLU projection; noise resilient"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "INT8 AbsMax", "compression_ratio": 2.0, "layer_sqnr_db": 40.2, "sensitivity_tier": "Critical", "engineering_guidance": "Compresses wide feed-forward representation back to d_model"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "INT4 Blockwise (G=128)", "compression_ratio": 3.55, "layer_sqnr_db": 16.7, "sensitivity_tier": "Critical", "engineering_guidance": "Compresses wide feed-forward representation back to d_model"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "INT4 AWQ", "compression_ratio": 3.55, "layer_sqnr_db": 20.5, "sensitivity_tier": "Critical", "engineering_guidance": "Compresses wide feed-forward representation back to d_model"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "BitNet 1.58b", "compression_ratio": 7.5, "layer_sqnr_db": 6.3, "sensitivity_tier": "Critical", "engineering_guidance": "Compresses wide feed-forward representation back to d_model"}];
+    const PARETO_DATA = [{"configuration": "BF16 baseline", "scheme": "bf16", "label": "BF16", "compression_ratio": 1.0, "bits_per_weight": 16.0, "model_compression": 1.0, "memory_footprint_mb": 950, "memory_savings_pct": 0.0, "sqnr_db": null, "perplexity": 4.777, "perplexity_delta_pct": 0.0, "decode_tok_s": 17.0, "decode_speed_vs_bf16": 1.0}, {"configuration": "INT8 per-channel", "scheme": "int8", "label": "INT8", "compression_ratio": 1.99, "bits_per_weight": 8.04, "model_compression": 1.56, "memory_footprint_mb": 611, "memory_savings_pct": 35.7, "sqnr_db": 40.0, "perplexity": 4.794, "perplexity_delta_pct": 0.36, "decode_tok_s": 11.5, "decode_speed_vs_bf16": 0.68}, {"configuration": "INT4 G=32", "scheme": "int4", "label": "INT4 G32", "compression_ratio": 3.2, "bits_per_weight": 5.0, "model_compression": 1.97, "memory_footprint_mb": 483, "memory_savings_pct": 49.2, "sqnr_db": 19.8, "perplexity": 5.656, "perplexity_delta_pct": 18.4, "decode_tok_s": 3.9, "decode_speed_vs_bf16": 0.23}, {"configuration": "INT4 G=64", "scheme": "int4", "label": "INT4 G64", "compression_ratio": 3.55, "bits_per_weight": 4.51, "model_compression": 2.05, "memory_footprint_mb": 464, "memory_savings_pct": 51.2, "sqnr_db": 18.7, "perplexity": 5.905, "perplexity_delta_pct": 23.61, "decode_tok_s": 3.8, "decode_speed_vs_bf16": 0.23}, {"configuration": "INT4 G=128", "scheme": "int4", "label": "INT4 G128", "compression_ratio": 3.76, "bits_per_weight": 4.26, "model_compression": 2.11, "memory_footprint_mb": 451, "memory_savings_pct": 52.5, "sqnr_db": 17.8, "perplexity": 6.215, "perplexity_delta_pct": 30.09, "decode_tok_s": 3.8, "decode_speed_vs_bf16": 0.23}, {"configuration": "2:4 structured sparsity", "scheme": "sparse24", "label": "2:4", "compression_ratio": 0.94, "bits_per_weight": 17.02, "model_compression": 0.95, "memory_footprint_mb": 1001, "memory_savings_pct": -5.4, "sqnr_db": 9.1, "perplexity": 3391.622, "perplexity_delta_pct": 70900.11, "decode_tok_s": 5.8, "decode_speed_vs_bf16": 0.34}, {"configuration": "Ternary (post-hoc)", "scheme": "ternary", "label": "TERNARY", "compression_ratio": 8.0, "bits_per_weight": 2.0, "model_compression": 2.61, "memory_footprint_mb": 364, "memory_savings_pct": 61.7, "sqnr_db": 5.0, "perplexity": 2456215.501, "perplexity_delta_pct": 51418234.99, "decode_tok_s": 4.1, "decode_speed_vs_bf16": 0.24}];
+    const LAYER_DATA = [{"layer_component": "Attention Query (q_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 40.2, "perplexity_delta_pct": -0.15, "impact_tier": "Low"}, {"layer_component": "Attention Query (q_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 17.4, "perplexity_delta_pct": 0.81, "impact_tier": "Low"}, {"layer_component": "Attention Query (q_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 9.2, "perplexity_delta_pct": 9.59, "impact_tier": "Moderate"}, {"layer_component": "Attention Query (q_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 3.8, "perplexity_delta_pct": 276.99, "impact_tier": "High"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 40.7, "perplexity_delta_pct": -0.07, "impact_tier": "Low"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 17.6, "perplexity_delta_pct": 1.12, "impact_tier": "Low"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 9.1, "perplexity_delta_pct": 10.1, "impact_tier": "High"}, {"layer_component": "Attention Key (k_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 3.9, "perplexity_delta_pct": 392.41, "impact_tier": "High"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 39.4, "perplexity_delta_pct": -0.06, "impact_tier": "Low"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 16.6, "perplexity_delta_pct": 3.06, "impact_tier": "Moderate"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 9.8, "perplexity_delta_pct": 40.49, "impact_tier": "High"}, {"layer_component": "Attention Value (v_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 4.7, "perplexity_delta_pct": 40154.18, "impact_tier": "High"}, {"layer_component": "Attention Output (o_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 40.0, "perplexity_delta_pct": 0.0, "impact_tier": "Low"}, {"layer_component": "Attention Output (o_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 17.9, "perplexity_delta_pct": 1.96, "impact_tier": "Low"}, {"layer_component": "Attention Output (o_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 8.9, "perplexity_delta_pct": 64.47, "impact_tier": "High"}, {"layer_component": "Attention Output (o_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 4.5, "perplexity_delta_pct": 185793.31, "impact_tier": "High"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 41.0, "perplexity_delta_pct": 0.05, "impact_tier": "Low"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 17.9, "perplexity_delta_pct": 1.88, "impact_tier": "Low"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 9.0, "perplexity_delta_pct": 31.22, "impact_tier": "High"}, {"layer_component": "MLP Gate (gate_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 5.1, "perplexity_delta_pct": 36136.94, "impact_tier": "High"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 41.0, "perplexity_delta_pct": -0.07, "impact_tier": "Low"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 17.9, "perplexity_delta_pct": 5.99, "impact_tier": "Moderate"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 9.1, "perplexity_delta_pct": 57.99, "impact_tier": "High"}, {"layer_component": "MLP Up (up_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 5.4, "perplexity_delta_pct": 2594285.27, "impact_tier": "High"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "INT8 per-channel", "layers_quantized": 24, "weight_sqnr_db": 38.1, "perplexity_delta_pct": 0.14, "impact_tier": "Low"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "INT4 G=128", "layers_quantized": 24, "weight_sqnr_db": 17.6, "perplexity_delta_pct": 8.25, "impact_tier": "Moderate"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "2:4 structured sparsity", "layers_quantized": 24, "weight_sqnr_db": 9.1, "perplexity_delta_pct": 82.22, "impact_tier": "High"}, {"layer_component": "MLP Down (down_proj)", "quantization_scheme": "Ternary (post-hoc)", "layers_quantized": 24, "weight_sqnr_db": 5.1, "perplexity_delta_pct": 1682360.8, "impact_tier": "High"}];
 
     let currentYMetric = 'sqnr_db';
     let currentXMetric = 'compression_ratio';
@@ -1084,12 +1082,35 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       }
     }
 
+    // Formatting helpers
+    function fmtPctChange(v) {
+      if (v >= 1000) return 'x' + Math.round(1 + v / 100).toLocaleString('en-US') + ' (collapsed)';
+      return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    }
+    function fmtSqnr(v) {
+      return v === null ? 'n/a (reference)' : v.toFixed(1) + ' dB';
+    }
+
+    // Y value for the current metric (null = not plottable, e.g. SQNR of the unquantized baseline)
+    function yValue(d) {
+      if (currentYMetric === 'sqnr_db') return d.sqnr_db;
+      return Math.log10(d.perplexity);
+    }
+    const higherIsBetter = () => currentYMetric === 'sqnr_db';
+
+    // Non-dominated configs: no other config compresses at least as much AND has at least as good quality
+    function paretoFront(points) {
+      return points.filter(p => !points.some(q => q !== p
+        && q.compression_ratio >= p.compression_ratio
+        && (higherIsBetter() ? yValue(q) >= yValue(p) : yValue(q) <= yValue(p))
+        && (q.compression_ratio > p.compression_ratio || yValue(q) !== yValue(p))));
+    }
+
     // Metric Toggle for Pareto Plot
     function setPlotMetric(metric) {
       currentYMetric = metric;
       document.getElementById('btn-y-sqnr').classList.toggle('active', metric === 'sqnr_db');
-      document.getElementById('btn-y-ppl').classList.toggle('active', metric === 'perplexity_delta');
-      document.getElementById('btn-y-recon').classList.toggle('active', metric === 'reconstruction_error');
+      document.getElementById('btn-y-ppl').classList.toggle('active', metric === 'perplexity');
       renderParetoPlot();
     }
 
@@ -1098,6 +1119,12 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       document.getElementById('btn-x-comp').classList.toggle('active', metric === 'compression_ratio');
       document.getElementById('btn-x-bits').classList.toggle('active', metric === 'bits_per_weight');
       renderParetoPlot();
+    }
+
+    function svgEl(tag, attrs) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      return el;
     }
 
     // Render Pareto SVG Scatter Plot
@@ -1109,67 +1136,47 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
       svg.innerHTML = '';
 
-      const padL = 75;
-      const padR = 40;
-      const padT = 40;
-      const padB = 60;
+      const padL = 75, padR = 40, padT = 40, padB = 60;
       const plotW = w - padL - padR;
       const plotH = h - padT - padB;
 
-      // Extract domains
-      let xVals = PARETO_DATA.map(d => d[currentXMetric]);
-      let yVals = PARETO_DATA.map(d => d[currentYMetric]);
+      const points = PARETO_DATA.filter(d => yValue(d) !== null);
+      const xVals = points.map(d => d[currentXMetric]);
+      const yVals = points.map(yValue);
 
-      let minX = Math.min(...xVals);
-      let maxX = Math.max(...xVals);
-      let minY = Math.min(...yVals);
-      let maxY = Math.max(...yVals);
+      let minX = Math.min(...xVals), maxX = Math.max(...xVals);
+      const xPad = (maxX - minX) * 0.08 || 1;
+      minX = Math.max(0, minX - xPad);
+      maxX = maxX + xPad;
 
+      let minY, maxY;
       if (currentYMetric === 'sqnr_db') {
         minY = 0;
-        maxY = 105;
-      } else if (currentYMetric === 'perplexity_delta') {
-        minY = 0;
-        maxY = Math.max(...yVals) * 1.15;
-      }
-
-      if (currentXMetric === 'compression_ratio') {
-        minX = 0.8;
-        maxX = 8.0;
+        maxY = Math.ceil((Math.max(...yVals) + 5) / 10) * 10;
       } else {
-        minX = 1.5;
-        maxX = 17.0;
+        minY = Math.floor(Math.min(...yVals));
+        maxY = Math.ceil(Math.max(...yVals));
+        if (maxY === minY) maxY = minY + 1;
       }
 
       const scaleX = v => padL + ((v - minX) / (maxX - minX)) * plotW;
       const scaleY = v => padT + plotH - ((v - minY) / (maxY - minY)) * plotH;
 
-      // Gridlines & Axis
-      const gridG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      gridG.setAttribute('stroke', '#1f293d');
-      gridG.setAttribute('stroke-width', '1');
+      const gridG = svgEl('g', { stroke: '#1f293d', 'stroke-width': '1' });
+      const tickText = (x, y, anchor, txt) => {
+        const t = svgEl('text', { x, y, fill: '#64748b', 'font-size': '11', 'font-family': 'JetBrains Mono', 'text-anchor': anchor });
+        t.textContent = txt;
+        svg.appendChild(t);
+      };
 
-      // Horizontal grid lines
-      const yTicks = 5;
+      // Horizontal grid lines (log axis for perplexity: one line per power of ten)
+      const yTicks = currentYMetric === 'sqnr_db' ? 5 : (maxY - minY);
       for (let i = 0; i <= yTicks; i++) {
         const val = minY + (i / yTicks) * (maxY - minY);
         const yPos = scaleY(val);
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', padL);
-        line.setAttribute('x2', padL + plotW);
-        line.setAttribute('y1', yPos);
-        line.setAttribute('y2', yPos);
-        gridG.appendChild(line);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', padL - 12);
-        text.setAttribute('y', yPos + 4);
-        text.setAttribute('fill', '#64748b');
-        text.setAttribute('font-size', '11');
-        text.setAttribute('font-family', 'JetBrains Mono');
-        text.setAttribute('text-anchor', 'end');
-        text.textContent = val.toFixed(currentYMetric === 'sqnr_db' ? 0 : 3);
-        svg.appendChild(text);
+        gridG.appendChild(svgEl('line', { x1: padL, x2: padL + plotW, y1: yPos, y2: yPos }));
+        const label = currentYMetric === 'sqnr_db' ? val.toFixed(0) : Number(Math.pow(10, val).toPrecision(2)).toLocaleString('en-US', { notation: 'compact' });
+        tickText(padL - 12, yPos + 4, 'end', label);
       }
 
       // Vertical grid lines
@@ -1177,117 +1184,61 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       for (let i = 0; i <= xTicks; i++) {
         const val = minX + (i / xTicks) * (maxX - minX);
         const xPos = scaleX(val);
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', xPos);
-        line.setAttribute('x2', xPos);
-        line.setAttribute('y1', padT);
-        line.setAttribute('y2', padT + plotH);
-        gridG.appendChild(line);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', xPos);
-        text.setAttribute('y', padT + plotH + 20);
-        text.setAttribute('fill', '#64748b');
-        text.setAttribute('font-size', '11');
-        text.setAttribute('font-family', 'JetBrains Mono');
-        text.setAttribute('text-anchor', 'middle');
-        text.textContent = val.toFixed(1) + (currentXMetric === 'compression_ratio' ? 'x' : 'b');
-        svg.appendChild(text);
+        gridG.appendChild(svgEl('line', { x1: xPos, x2: xPos, y1: padT, y2: padT + plotH }));
+        tickText(xPos, padT + plotH + 20, 'middle', val.toFixed(1) + (currentXMetric === 'compression_ratio' ? 'x' : 'b'));
       }
       svg.appendChild(gridG);
 
-      // Axis Labels
-      const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      xLabel.setAttribute('x', padL + plotW / 2);
-      xLabel.setAttribute('y', padT + plotH + 46);
-      xLabel.setAttribute('fill', '#94a3b8');
-      xLabel.setAttribute('font-size', '12');
-      xLabel.setAttribute('font-weight', '600');
-      xLabel.setAttribute('text-anchor', 'middle');
-      xLabel.textContent = currentXMetric === 'compression_ratio' ? 'Compression Ratio (Higher = Less Memory)' : 'Bits per Weight (Lower = More Compressed)';
+      const xLabel = svgEl('text', { x: padL + plotW / 2, y: padT + plotH + 46, fill: '#94a3b8', 'font-size': '12', 'font-weight': '600', 'text-anchor': 'middle' });
+      xLabel.textContent = currentXMetric === 'compression_ratio' ? 'Linear-layer compression vs BF16 (higher = less memory)' : 'Stored bits per weight (lower = more compressed)';
       svg.appendChild(xLabel);
 
-      const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      yLabel.setAttribute('x', -(padT + plotH / 2));
-      yLabel.setAttribute('y', 22);
-      yLabel.setAttribute('transform', 'rotate(-90)');
-      yLabel.setAttribute('fill', '#94a3b8');
-      yLabel.setAttribute('font-size', '12');
-      yLabel.setAttribute('font-weight', '600');
-      yLabel.setAttribute('text-anchor', 'middle');
-      yLabel.textContent = currentYMetric === 'sqnr_db' ? 'Signal-to-Quantization-Noise Ratio (SQNR dB, Higher = Better Quality)' : (currentYMetric === 'perplexity_delta' ? 'Perplexity Delta ΔPPL (Lower = Better)' : 'L2 Reconstruction Error (Lower = Better)');
+      const yLabel = svgEl('text', { x: -(padT + plotH / 2), y: 22, transform: 'rotate(-90)', fill: '#94a3b8', 'font-size': '12', 'font-weight': '600', 'text-anchor': 'middle' });
+      yLabel.textContent = currentYMetric === 'sqnr_db' ? 'Weight SQNR in dB (higher = closer to original)' : 'Perplexity, log scale (lower = better)';
       svg.appendChild(yLabel);
 
-      // Pareto Optimal Frontier Curve (if SQNR)
-      if (currentYMetric === 'sqnr_db' && currentXMetric === 'compression_ratio') {
-        // Filter Pareto dominant points
-        const paretoPoints = [
-          PARETO_DATA.find(d => d.scheme === 'fp16'),
-          PARETO_DATA.find(d => d.scheme === 'smoothquant'),
-          PARETO_DATA.find(d => d.scheme === 'gptq'),
-          PARETO_DATA.find(d => d.scheme === 'awq'),
-          PARETO_DATA.find(d => d.scheme === 'ternary')
-        ].filter(Boolean);
-
-        paretoPoints.sort((a, b) => a.compression_ratio - b.compression_ratio);
-
-        let pathD = `M ${scaleX(paretoPoints[0].compression_ratio)} ${scaleY(paretoPoints[0].sqnr_db)}`;
-        for (let i = 1; i < paretoPoints.length; i++) {
-          pathD += ` L ${scaleX(paretoPoints[i].compression_ratio)} ${scaleY(paretoPoints[i].sqnr_db)}`;
-        }
-
-        const paretoPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        paretoPath.setAttribute('d', pathD);
-        paretoPath.setAttribute('fill', 'none');
-        paretoPath.setAttribute('stroke', 'rgba(16, 185, 129, 0.4)');
-        paretoPath.setAttribute('stroke-width', '2');
-        paretoPath.setAttribute('stroke-dasharray', '4,4');
-        svg.appendChild(paretoPath);
+      // Pareto frontier computed from the measured points
+      const front = paretoFront(points).sort((a, b) => scaleX(a[currentXMetric]) - scaleX(b[currentXMetric]));
+      if (front.length > 1) {
+        const pathD = front.map((d, i) => `${i ? 'L' : 'M'} ${scaleX(d[currentXMetric])} ${scaleY(yValue(d))}`).join(' ');
+        svg.appendChild(svgEl('path', { d: pathD, fill: 'none', stroke: 'rgba(16, 185, 129, 0.4)', 'stroke-width': '2', 'stroke-dasharray': '4,4' }));
       }
 
-      // Plot Points
       const tooltip = document.getElementById('plot-tooltip');
+      const placedLabels = [];
 
-      PARETO_DATA.forEach(d => {
+      points.forEach(d => {
         const cx = scaleX(d[currentXMetric]);
-        const cy = scaleY(d[currentYMetric]);
+        const cy = scaleY(yValue(d));
 
         let col = '#10b981';
-        if (d.scheme.includes('fp16')) col = '#94a3b8';
-        else if (d.scheme.includes('int8') || d.scheme.includes('smoothquant')) col = '#10b981';
-        else if (d.scheme.includes('fp8')) col = '#06b6d4';
-        else if (d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq')) col = '#f59e0b';
+        if (d.scheme === 'bf16') col = '#94a3b8';
+        else if (d.scheme.includes('int8')) col = '#10b981';
+        else if (d.scheme.includes('int4')) col = '#f59e0b';
         else if (d.scheme.includes('ternary')) col = '#f43f5e';
         else if (d.scheme.includes('sparse')) col = '#8b5cf6';
 
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', cx);
-        circle.setAttribute('cy', cy);
-        circle.setAttribute('r', '7');
-        circle.setAttribute('fill', col);
-        circle.setAttribute('stroke', '#0b0f19');
-        circle.setAttribute('stroke-width', '2');
+        const circle = svgEl('circle', { cx, cy, r: '7', fill: col, stroke: '#0b0f19', 'stroke-width': '2' });
         circle.style.cursor = 'pointer';
         circle.style.transition = 'all 0.15s ease';
 
         circle.addEventListener('mouseenter', (e) => {
           circle.setAttribute('r', '11');
           circle.setAttribute('stroke', '#fff');
-
           tooltip.style.display = 'block';
+          const saved = d.memory_savings_pct;
           tooltip.innerHTML = `
             <div class="plot-tooltip-title">${d.configuration}</div>
-            <div><strong>Compression:</strong> ${d.compression_ratio.toFixed(2)}x (${d.bits_per_weight} bits/wt)</div>
-            <div><strong>SQNR:</strong> ${d.sqnr_db.toFixed(1)} dB</div>
-            <div><strong>Δ PPL:</strong> +${d.perplexity_delta.toFixed(3)}</div>
-            <div><strong>VRAM Footprint:</strong> ${d.memory_footprint_mb} MB (-${d.memory_savings_pct}%)</div>
-            <div style="margin-top:6px; color:#cbd5e1; font-size:11px;">${d.hardware_acceleration}</div>
+            <div><strong>Linear layers:</strong> ${d.compression_ratio.toFixed(2)}x (${d.bits_per_weight} bits/wt)</div>
+            <div><strong>Whole model:</strong> ${d.model_compression.toFixed(2)}x, ${d.memory_footprint_mb} MB (${saved >= 0 ? '-' : '+'}${Math.abs(saved)}%)</div>
+            <div><strong>Weight SQNR:</strong> ${fmtSqnr(d.sqnr_db)}</div>
+            <div><strong>Perplexity:</strong> ${d.perplexity.toLocaleString('en-US', { maximumFractionDigits: 3 })} (${fmtPctChange(d.perplexity_delta_pct)})</div>
+            <div style="margin-top:6px; color:#cbd5e1; font-size:11px;">Decode ${d.decode_speed_vs_bf16.toFixed(2)}x BF16 (${d.decode_tok_s} tok/s, reference runtime)</div>
           `;
-
           const rect = box.getBoundingClientRect();
           let tx = e.clientX - rect.left + 15;
-          let ty = e.clientY - rect.top - 20;
-          if (tx + 260 > w) tx = e.clientX - rect.left - 260;
+          const ty = e.clientY - rect.top - 20;
+          if (tx + 280 > w) tx = e.clientX - rect.left - 280;
           tooltip.style.left = tx + 'px';
           tooltip.style.top = ty + 'px';
         });
@@ -1298,22 +1249,27 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
           tooltip.style.display = 'none';
         });
 
-        circle.addEventListener('click', () => {
-          highlightTableRow(d.configuration);
-        });
-
+        circle.addEventListener('click', () => highlightTableRow(d.configuration));
         svg.appendChild(circle);
 
-        // Dot label
-        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        txt.setAttribute('x', cx + 9);
-        txt.setAttribute('y', cy + 4);
-        txt.setAttribute('fill', '#94a3b8');
-        txt.setAttribute('font-size', '10');
-        txt.setAttribute('font-family', 'Inter');
-        txt.textContent = d.scheme.toUpperCase();
+        // Nudge labels down until they clear other dots and the labels already drawn
+        let ly = cy + 4;
+        const clashes = () =>
+          placedLabels.some(p => Math.abs(p.x - cx) < 70 && Math.abs(p.y - ly) < 12)
+          || points.some(q => q !== d && scaleX(q[currentXMetric]) - cx > 0 && scaleX(q[currentXMetric]) - cx < 70
+                              && Math.abs(scaleY(yValue(q)) + 4 - ly) < 12);
+        while (clashes()) ly += 12;
+        placedLabels.push({ x: cx, y: ly });
+        const txt = svgEl('text', { x: cx + 9, y: ly, fill: '#94a3b8', 'font-size': '10', 'font-family': 'Inter' });
+        txt.textContent = d.label;
         svg.appendChild(txt);
       });
+
+      if (points.length < PARETO_DATA.length) {
+        const note = svgEl('text', { x: padL + plotW, y: padT - 14, fill: '#64748b', 'font-size': '11', 'text-anchor': 'end' });
+        note.textContent = 'BF16 baseline not shown: SQNR is undefined for unquantized weights';
+        svg.appendChild(note);
+      }
     }
 
     // Table Rendering & Sorting
@@ -1321,9 +1277,9 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       const tbody = document.getElementById('pareto-tbody');
       tbody.innerHTML = '';
 
-      let filtered = PARETO_DATA.filter(d => {
-        if (currentFilter === 'int8') return d.scheme.includes('int8') || d.scheme.includes('fp8') || d.scheme.includes('smoothquant');
-        if (currentFilter === 'int4') return d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq');
+      const filtered = PARETO_DATA.filter(d => {
+        if (currentFilter === 'int8') return d.scheme.includes('int8');
+        if (currentFilter === 'int4') return d.scheme.includes('int4');
         if (currentFilter === 'subbyte') return d.scheme.includes('ternary') || d.scheme.includes('sparse');
         return true;
       });
@@ -1332,14 +1288,15 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
         let vA = a[currentSortCol];
         let vB = b[currentSortCol];
         if (typeof vA === 'string') return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        if (vA === null) vA = Infinity;  // unquantized baseline: SQNR is unbounded
+        if (vB === null) vB = Infinity;
         return sortAsc ? vA - vB : vB - vA;
       });
 
       filtered.forEach(d => {
         let badgeClass = 'badge-fp16';
-        if (d.scheme.includes('int8') || d.scheme.includes('smoothquant')) badgeClass = 'badge-int8';
-        else if (d.scheme.includes('fp8')) badgeClass = 'badge-fp8';
-        else if (d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq')) badgeClass = 'badge-int4';
+        if (d.scheme.includes('int8')) badgeClass = 'badge-int8';
+        else if (d.scheme.includes('int4')) badgeClass = 'badge-int4';
         else if (d.scheme.includes('ternary')) badgeClass = 'badge-ternary';
         else if (d.scheme.includes('sparse')) badgeClass = 'badge-sparse';
 
@@ -1350,13 +1307,12 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
             <strong>${d.configuration}</strong>
             <span class="badge ${badgeClass}" style="margin-left: 6px;">${d.scheme}</span>
           </td>
-          <td style="font-family:var(--font-mono);">${d.bits_per_weight.toFixed(1)}</td>
+          <td style="font-family:var(--font-mono);">${d.bits_per_weight.toFixed(2)}</td>
           <td style="font-family:var(--font-mono); font-weight:700; color:var(--accent);">${d.compression_ratio.toFixed(2)}x</td>
           <td style="font-family:var(--font-mono);">${d.memory_footprint_mb} MB</td>
-          <td style="font-family:var(--font-mono); font-weight:700;">${d.sqnr_db.toFixed(1)} dB</td>
-          <td style="font-family:var(--font-mono); color:${d.perplexity_delta > 0.1 ? 'var(--rose)' : 'var(--text-main)'};">+${d.perplexity_delta.toFixed(3)}</td>
-          <td style="font-size:12px; color:var(--text-muted);">${d.hardware_acceleration}</td>
-          <td style="font-size:12px; color:var(--text-muted);">${d.primary_use_case}</td>
+          <td style="font-family:var(--font-mono); font-weight:700;">${fmtSqnr(d.sqnr_db)}</td>
+          <td style="font-family:var(--font-mono); color:${d.perplexity_delta_pct > 5 ? 'var(--rose)' : 'var(--text-main)'};">${fmtPctChange(d.perplexity_delta_pct)}</td>
+          <td style="font-family:var(--font-mono);">${d.decode_speed_vs_bf16.toFixed(2)}x</td>
         `;
         tbody.appendChild(tr);
       });
@@ -1364,12 +1320,8 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
 
     function filterTable(cat) {
       currentFilter = cat;
-      document.querySelectorAll('#tab-pareto .control-group button').forEach(b => {
-        if (b.innerText.toLowerCase().includes(cat) || (cat === 'all' && b.innerText.includes('All'))) {
-          b.classList.add('active');
-        } else if (b.innerText.includes('INT8') || b.innerText.includes('INT4') || b.innerText.includes('BitNet') || b.innerText.includes('All')) {
-          b.classList.remove('active');
-        }
+      document.querySelectorAll('#table-filters button').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === cat);
       });
       renderTable();
     }
@@ -1617,14 +1569,13 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
     // ==========================================
     // TAB 3: LAYER SENSITIVITY SIMULATOR
     // ==========================================
-    let currentLayerScheme = 'INT8 AbsMax';
+    let currentLayerScheme = "INT8 per-channel";
 
     function setLayerScheme(scheme) {
       currentLayerScheme = scheme;
-      document.getElementById('btn-ls-int8').classList.toggle('active', scheme === 'INT8 AbsMax');
-      document.getElementById('btn-ls-int4').classList.toggle('active', scheme === 'INT4 Blockwise (G=128)');
-      document.getElementById('btn-ls-awq').classList.toggle('active', scheme === 'INT4 AWQ');
-      document.getElementById('btn-ls-bitnet').classList.toggle('active', scheme === 'BitNet 1.58b');
+      document.querySelectorAll('#layer-scheme-buttons button').forEach(b => {
+        b.classList.toggle('active', b.dataset.scheme === scheme);
+      });
       renderLayerBars();
     }
 
@@ -1633,30 +1584,32 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       container.innerHTML = '';
 
       const rows = LAYER_DATA.filter(d => d.quantization_scheme === currentLayerScheme);
+      // Scale bars to the worst layer, but never below the 2% "Low" band so noise-level changes stay short
+      const worst = Math.max(...rows.map(d => Math.abs(d.perplexity_delta_pct)), 2);
 
       rows.forEach(d => {
         const row = document.createElement('div');
         row.className = 'layer-bar-row';
 
         let tierColor = 'var(--accent)';
-        if (d.sensitivity_tier === 'Critical') tierColor = 'var(--rose)';
-        else if (d.sensitivity_tier === 'Moderate') tierColor = 'var(--amber)';
+        if (d.impact_tier === 'High') tierColor = 'var(--rose)';
+        else if (d.impact_tier === 'Moderate') tierColor = 'var(--amber)';
 
-        const pct = Math.max(5, Math.min(100, (d.layer_sqnr_db / 45) * 100));
+        const pct = Math.max(2, (Math.abs(d.perplexity_delta_pct) / worst) * 100);
 
         row.innerHTML = `
           <div class="layer-info">
             <span class="layer-name">
-              <span class="badge" style="background:${tierColor}22; color:${tierColor}; border:1px solid ${tierColor}44;">${d.sensitivity_tier}</span>
+              <span class="badge" style="background:${tierColor}22; color:${tierColor}; border:1px solid ${tierColor}44;">${d.impact_tier}</span>
               ${d.layer_component}
             </span>
-            <span class="layer-metric">${d.layer_sqnr_db.toFixed(1)} dB</span>
+            <span class="layer-metric">${fmtPctChange(d.perplexity_delta_pct)}</span>
           </div>
           <div class="progress-track">
             <div class="progress-fill" style="width: ${pct}%; background: ${tierColor};"></div>
           </div>
           <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
-            ${d.engineering_guidance}
+            Weight SQNR ${d.weight_sqnr_db.toFixed(1)} dB across ${d.layers_quantized} layers
           </div>
         `;
         container.appendChild(row);

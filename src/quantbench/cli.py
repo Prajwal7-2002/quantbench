@@ -210,10 +210,14 @@ def eval_cmd(
     table.add_column("SQNR (dB)", style="bold magenta")
     table.add_column("Compression", style="bold green")
 
-    table.add_row("FP16 Baseline", "None", "16-bit", "100.0 dB", "1.00x")
+    # Compression vs 16-bit weights; each INT4 group also stores a 16-bit scale and zero-point.
+    def int4_ratio(group: int) -> str:
+        return f"{16 / (4 + 32 / group):.2f}x"
+
+    table.add_row("FP16 Baseline", "None", "16-bit", "exact", "1.00x")
     table.add_row("INT8 AbsMax", "Per-Channel", "8-bit", f"{sqnr8:.2f} dB", "2.00x")
-    table.add_row("INT4 Blockwise", "128", "4-bit", f"{sqnr4_128:.2f} dB", "3.55x")
-    table.add_row("INT4 Blockwise", "64", "4-bit", f"{sqnr4_64:.2f} dB", "3.20x")
+    table.add_row("INT4 Blockwise", "128", "4-bit", f"{sqnr4_128:.2f} dB", int4_ratio(128))
+    table.add_row("INT4 Blockwise", "64", "4-bit", f"{sqnr4_64:.2f} dB", int4_ratio(64))
 
     console.print(table)
 

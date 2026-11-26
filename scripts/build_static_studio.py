@@ -1,12 +1,138 @@
-"""Build standalone, zero-dependency Static Web Studio for QuantBench."""
+"""Build standalone, zero-dependency Static Web Studio for QuantBench.
 
+Every number shown in the Pareto and layer tabs comes from the measured dataset written by
+scripts/measure_real_pareto.py (hf_dataset/*.json). Nothing here is typed in by hand.
+"""
+
+import html
 import json
 from pathlib import Path
 
+# Perplexity-impact bands for the layer tab, applied to the measured perplexity change.
+IMPACT_BANDS = [(2.0, "Low"), (10.0, "Moderate")]  # anything above the last bound is "High"
 
-def generate_html(pareto_data: list, layer_data: list) -> str:
+
+def short_label(row: dict) -> str:
+    scheme = row["scheme"]
+    if scheme == "none":
+        return "BF16"
+    if scheme == "int4":
+        return f"INT4 G{row['group_size']}"
+    return {"int8": "INT8", "sparse24": "2:4", "ternary": "TERNARY"}.get(scheme, scheme.upper())
+
+
+def adapt_pareto(rows: list) -> list:
+    """Map measured rows to the fields the page displays (all derived from measurements)."""
+    base = next(r for r in rows if r["scheme"] == "none")
+    out = []
+    for r in rows:
+        comp = r["linear_layer_compression"]
+        out.append(
+            {
+                "configuration": r["config"],
+                "scheme": "bf16" if r["scheme"] == "none" else r["scheme"],
+                "label": short_label(r),
+                "compression_ratio": comp,
+                "bits_per_weight": round(16.0 / comp, 2),
+                "model_compression": r["model_compression"],
+                "memory_footprint_mb": r["resting_vram_mb"],
+                "memory_savings_pct": round(
+                    100.0 * (1 - r["resting_vram_mb"] / base["resting_vram_mb"]), 1
+                ),
+                "sqnr_db": r["weight_sqnr_db"],
+                "perplexity": r["perplexity"],
+                "perplexity_delta_pct": r["perplexity_delta_pct"],
+                "decode_tok_s": r["decode_tok_s"],
+                "decode_speed_vs_bf16": r["decode_speed_vs_bf16"],
+            }
+        )
+    return out
+
+
+def impact_tier(delta_pct: float) -> str:
+    for bound, name in IMPACT_BANDS:
+        if delta_pct < bound:
+            return name
+    return "High"
+
+
+def adapt_layers(rows: list) -> list:
+    return [
+        {
+            "layer_component": r["layer_component"],
+            "quantization_scheme": r["quantization_scheme"],
+            "layers_quantized": r["layers_quantized"],
+            "weight_sqnr_db": r["weight_sqnr_db"],
+            "perplexity_delta_pct": r["perplexity_delta_pct"],
+            "impact_tier": impact_tier(r["perplexity_delta_pct"]),
+        }
+        for r in rows
+    ]
+
+
+def layer_insights_html(layers: list) -> str:
+    """Plain-language findings computed from the measured layer-sensitivity rows."""
+    items = []
+    int8 = [r for r in layers if r["quantization_scheme"].startswith("INT8")]
+    if int8:
+        worst = max(abs(r["perplexity_delta_pct"]) for r in int8)
+        items.append(
+            f'<li><strong style="color:var(--accent)">INT8 per-channel:</strong> quantizing any single '
+            f"projection type changed perplexity by at most {worst:.2f}%.</li>"
+        )
+    int4 = sorted(
+        (r for r in layers if r["quantization_scheme"].startswith("INT4")),
+        key=lambda r: r["perplexity_delta_pct"],
+    )
+    if int4:
+        lo, hi = int4[0], int4[-1]
+        items.append(
+            f'<li><strong style="color:var(--amber)">INT4 G=128:</strong> {html.escape(hi["layer_component"])} '
+            f"hurt most ({hi['perplexity_delta_pct']:+.2f}%), {html.escape(lo['layer_component'])} least "
+            f"({lo['perplexity_delta_pct']:+.2f}%). Weight SQNR was nearly identical across layer types, so SQNR "
+            f"alone does not predict which layers matter.</li>"
+        )
+    sub = [r for r in layers if r["quantization_scheme"].startswith(("2:4", "Ternary"))]
+    if sub:
+        items.append(
+            '<li><strong style="color:var(--rose)">2:4 sparsity and post-hoc ternary:</strong> large perplexity '
+            f"increases even when applied to one projection type (up to {max(r['perplexity_delta_pct'] for r in sub):,.0f}%).</li>"
+        )
+    return "\n                ".join(items)
+
+
+def fmt_pct(v: float) -> str:
+    return f"{v:+.2f}%"
+
+
+def generate_html(pareto_rows: list, layer_rows: list, meta: dict) -> str:
+    pareto_data = adapt_pareto(pareto_rows)
+    layer_data = adapt_layers(layer_rows)
     pareto_json_str = json.dumps(pareto_data)
     layer_json_str = json.dumps(layer_data)
+
+    by_label = {d["label"]: d for d in pareto_data}
+    n_configs = len(pareto_data)
+    int8_row = by_label.get("INT8")
+    int4_row = by_label.get("INT4 G128")
+    stat_int4 = f"{int4_row['model_compression']:.2f}x" if int4_row else "n/a"
+    stat_int4_lbl = (
+        f"INT4 G=128 model size ({fmt_pct(int4_row['perplexity_delta_pct'])} PPL)"
+        if int4_row
+        else "INT4"
+    )
+    stat_int8 = fmt_pct(int8_row["perplexity_delta_pct"]) if int8_row else "n/a"
+    model = html.escape(meta.get("model", "the model"))
+    device = html.escape(meta.get("device", "the GPU"))
+    eval_text = html.escape(meta.get("eval_text", "held-out text"))
+    insights = layer_insights_html(layer_data)
+    layer_schemes = list(dict.fromkeys(r["quantization_scheme"] for r in layer_data))
+    layer_buttons = "\n            ".join(
+        f'<button class="pill-btn{" active" if i == 0 else ""}" data-scheme="{html.escape(s)}" '
+        f'onclick="setLayerScheme(this.dataset.scheme)">{html.escape(s)}</button>'
+        for i, s in enumerate(layer_schemes)
+    )
+    first_layer_scheme = json.dumps(layer_schemes[0] if layer_schemes else "")
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -565,8 +691,8 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
       <a class="btn-link" href="https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto" target="_blank">
         🤗 HF Dataset
       </a>
-      <a class="btn-link" href="https://pypi.org/project/quantbench/" target="_blank">
-        📦 PyPI v0.3.2
+      <a class="btn-link" href="https://pypi.org/project/quantbench-engine/" target="_blank">
+        📦 PyPI v0.1.2
       </a>
       <a class="btn-link" href="https://github.com/Prajwal7-2002/quantbench" target="_blank">
         ★ GitHub
@@ -582,23 +708,23 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
     <!-- Hero -->
     <div class="hero">
       <div>
-        <h1 class="hero-h1">Empirical Quantization Pareto Frontier & Sub-Byte Bit-Packing</h1>
+        <h1 class="hero-h1">Measured Quantization Pareto Frontier & Sub-Byte Bit-Packing</h1>
         <p class="hero-p">
-          Explore quality vs. compression Pareto curves, simulate BitNet 1.58b ternary and INT4 nibble bitshift registers, assess Transformer layer sensitivity, and inspect exact reconstruction SQNR in real time.
+          Quality vs. compression measured on <strong>{model}</strong> ({device}). See how ternary, INT4 and 2:4 values pack into bytes, compare per-layer sensitivity, and compute exact SQNR on your own tensors.
         </p>
       </div>
       <div class="hero-stats">
         <div class="stat-box">
-          <div class="stat-val" id="stat-configs">12</div>
-          <div class="stat-lbl">Configurations</div>
+          <div class="stat-val" id="stat-configs">{n_configs}</div>
+          <div class="stat-lbl">Measured configs</div>
         </div>
         <div class="stat-box">
-          <div class="stat-val">7.50x</div>
-          <div class="stat-lbl">Max Compression</div>
+          <div class="stat-val">{stat_int4}</div>
+          <div class="stat-lbl">{stat_int4_lbl}</div>
         </div>
         <div class="stat-box">
-          <div class="stat-val">+0.009</div>
-          <div class="stat-lbl">INT8 ΔPPL</div>
+          <div class="stat-val">{stat_int8}</div>
+          <div class="stat-lbl">INT8 perplexity change</div>
         </div>
       </div>
     </div>
@@ -623,8 +749,7 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
           <div class="control-group">
             <span style="font-size:12px; color:var(--text-muted);">Y-Axis:</span>
             <button class="pill-btn active" id="btn-y-sqnr" onclick="setPlotMetric('sqnr_db')">SQNR (dB)</button>
-            <button class="pill-btn" id="btn-y-ppl" onclick="setPlotMetric('perplexity_delta')">Δ Perplexity</button>
-            <button class="pill-btn" id="btn-y-recon" onclick="setPlotMetric('reconstruction_error')">L2 Error</button>
+            <button class="pill-btn" id="btn-y-ppl" onclick="setPlotMetric('perplexity')">Perplexity (log)</button>
             <span style="font-size:12px; color:var(--text-muted); margin-left: 10px;">X-Axis:</span>
             <button class="pill-btn active" id="btn-x-comp" onclick="setPlotX('compression_ratio')">Compression Ratio</button>
             <button class="pill-btn" id="btn-x-bits" onclick="setPlotX('bits_per_weight')">Bits / Weight</button>
@@ -641,13 +766,13 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
         <div class="card-header">
           <div>
             <div class="card-title">Benchmark Configurations Table</div>
-            <div class="card-sub">Measured on deterministic Transformer evaluation block across 512 calibration tokens</div>
+            <div class="card-sub">Measured on {model} ({device}). Perplexity on {eval_text}. Decode speed uses quantbench's reference runtime, which dequantizes weights every forward pass.</div>
           </div>
-          <div class="control-group">
-            <button class="pill-btn active" onclick="filterTable('all')">All (12)</button>
-            <button class="pill-btn" onclick="filterTable('int8')">INT8 / FP8</button>
-            <button class="pill-btn" onclick="filterTable('int4')">INT4 / AWQ / GPTQ</button>
-            <button class="pill-btn" onclick="filterTable('subbyte')">BitNet / 2:4 Sparsity</button>
+          <div class="control-group" id="table-filters">
+            <button class="pill-btn active" data-filter="all" onclick="filterTable('all')">All ({n_configs})</button>
+            <button class="pill-btn" data-filter="int8" onclick="filterTable('int8')">INT8</button>
+            <button class="pill-btn" data-filter="int4" onclick="filterTable('int4')">INT4</button>
+            <button class="pill-btn" data-filter="subbyte" onclick="filterTable('subbyte')">Ternary / 2:4</button>
           </div>
         </div>
 
@@ -657,12 +782,11 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
               <tr>
                 <th onclick="sortTable('configuration')">Configuration ⇕</th>
                 <th onclick="sortTable('bits_per_weight')">Bits / Wt ⇕</th>
-                <th onclick="sortTable('compression_ratio')">Ratio ⇕</th>
-                <th onclick="sortTable('memory_footprint_mb')">VRAM (MB) ⇕</th>
-                <th onclick="sortTable('sqnr_db')">SQNR (dB) ⇕</th>
-                <th onclick="sortTable('perplexity_delta')">Δ PPL ⇕</th>
-                <th>Hardware Acceleration</th>
-                <th>Primary Use Case</th>
+                <th onclick="sortTable('compression_ratio')">Linear-layer ratio ⇕</th>
+                <th onclick="sortTable('memory_footprint_mb')">Model VRAM (MB) ⇕</th>
+                <th onclick="sortTable('sqnr_db')">Weight SQNR (dB) ⇕</th>
+                <th onclick="sortTable('perplexity_delta_pct')">Perplexity change ⇕</th>
+                <th onclick="sortTable('decode_speed_vs_bf16')">Decode vs BF16 ⇕</th>
               </tr>
             </thead>
             <tbody id="pareto-tbody"></tbody>
@@ -727,8 +851,8 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
                     <div class="hex-lbl">Hexadecimal</div>
                   </div>
                   <div class="hex-item">
-                    <div class="hex-val" id="bitnet-savings">7.50x</div>
-                    <div class="hex-lbl">Memory Reduction</div>
+                    <div class="hex-val" id="bitnet-savings">8.00x</div>
+                    <div class="hex-lbl">vs BF16 (2-bit, before scale)</div>
                   </div>
                 </div>
 
@@ -801,7 +925,7 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
                   </div>
                   <div class="hex-item">
                     <div class="hex-val">4.00x</div>
-                    <div class="hex-lbl">vs FP16 Footprint</div>
+                    <div class="hex-lbl">vs BF16 (before scales)</div>
                   </div>
                 </div>
 
@@ -870,7 +994,7 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
                   </div>
                   <div class="hex-item">
                     <div class="hex-val" style="color: var(--accent);">2.00x</div>
-                    <div class="hex-lbl">Sparse Tensor Core FLOPs</div>
+                    <div class="hex-lbl">Peak math (NVIDIA spec, sparse kernels)</div>
                   </div>
                 </div>
               </div>
@@ -886,14 +1010,11 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
         <div class="card-header">
           <div>
             <div class="card-title">Transformer Layer Sensitivity Analysis</div>
-            <div class="card-sub">Layer-by-layer Signal-to-Quantization-Noise Ratio (SQNR) retention & Outlier Resilience</div>
+            <div class="card-sub">One projection type quantized at a time (all 24 layers), everything else in BF16. Bar length = measured perplexity change, scaled to the worst layer for this scheme (at least 2%).</div>
           </div>
-          <div class="control-group">
+          <div class="control-group" id="layer-scheme-buttons">
             <span style="font-size:12px; color:var(--text-muted);">Scheme:</span>
-            <button class="pill-btn active" id="btn-ls-int8" onclick="setLayerScheme('INT8 AbsMax')">INT8 AbsMax</button>
-            <button class="pill-btn" id="btn-ls-int4" onclick="setLayerScheme('INT4 Blockwise (G=128)')">INT4 Blockwise</button>
-            <button class="pill-btn" id="btn-ls-awq" onclick="setLayerScheme('INT4 AWQ')">INT4 AWQ</button>
-            <button class="pill-btn" id="btn-ls-bitnet" onclick="setLayerScheme('BitNet 1.58b')">BitNet 1.58b</button>
+            {layer_buttons}
           </div>
         </div>
 
@@ -905,20 +1026,15 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
           <div>
             <div style="background: #0d1322; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
               <h4 style="font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 10px;">
-                💡 Architectural Insights
+                💡 What the measurement shows
               </h4>
               <ul style="font-size: 12px; color: var(--text-muted); line-height: 1.7; padding-left: 18px;">
-                <li><strong style="color:var(--rose)">Attention Q & K Projections:</strong> Most vulnerable to quantization. Phase drift in query/key dot-products leads to exponential attention softmax dispersion.</li>
-                <li><strong style="color:var(--accent)">MLP Gate & Up Projections:</strong> Most resilient. Non-linear activations (SwiGLU/GeLU) naturally dampen small magnitude quantization errors.</li>
-                <li><strong style="color:var(--amber)">MLP Down Projection:</strong> Acts as an information bottleneck compressing representations back into d_model, requiring higher precision or finer group sizes.</li>
+                {insights}
               </ul>
 
               <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--card-border);">
-                <div style="font-size: 12px; font-weight: 600; color: var(--cyan); margin-bottom: 6px;">
-                  Mixed Precision Strategy:
-                </div>
                 <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
-                  Keep Q, K, and Down-proj in INT8 or INT4 AWQ (G=32), while compressing Gate, Up, and Value into aggressive 2-bit or INT4 (G=128) to achieve optimal throughput with 0 PPL degradation.
+                  Impact bands: Low &lt; 2%, Moderate &lt; 10%, High &ge; 10% perplexity change. One model and one evaluation text; effects do not simply add up when several layer types are quantized together.
                 </div>
               </div>
             </div>
@@ -1015,7 +1131,7 @@ def generate_html(pareto_data: list, layer_data: list) -> str:
         <div style="margin-bottom: 20px;">
           <div style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px;">Installation:</div>
           <div class="code-box">
-            pip install quantbench
+            pip install quantbench-engine
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
         </div>
@@ -1028,10 +1144,10 @@ from quantbench.quant.packing.ternary_pack import pack_ternary, unpack_ternary
 from quantbench.quant.packing.int4_pack import pack_nibbles, unpack_nibbles
 from quantbench.quant.packing.sparse_pack import prune_and_compress_2_4
 
-# 1. BitNet 1.58b Ternary Packing (7.5x compression)
+# 1. Ternary packing: 4 values per byte (8x smaller than BF16 before the scale)
 weights = torch.tensor([-1, 0, 1, -1, 0, 1, 1, -1], dtype=torch.int8)
 packed_bytes, orig_len = pack_ternary(weights, mode="2bit")
-unpacked = unpack_ternary(packed_bytes, original_length=orig_len, mode="2bit")
+unpacked = unpack_ternary(packed_bytes, original_len=orig_len, mode="2bit")
 assert torch.equal(weights, unpacked)
 
 # 2. INT4 Nibble Packing
@@ -1040,18 +1156,21 @@ low, high = unpack_nibbles(byte_val, signed=True)
 print(f"Packed byte: 0x{{byte_val:02X}}, Unpacked: [{{low}}, {{high}}]")
 
 # 3. Ampere 2:4 Structured Sparsity
-dense_block = torch.tensor([[0.45, -0.12, 0.88, 0.05]])
-compressed, indices = prune_and_compress_2_4(dense_block)
+dense_block = torch.tensor([[0.45, -0.12, 0.88, 0.05, 0.31, 0.02, -0.77, 0.10]])
+compressed, metadata = prune_and_compress_2_4(dense_block)
 print(f"Retained non-zeros: {{compressed}}")
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
         </div>
 
         <div>
-          <div style="font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 8px;">CLI Pareto Frontier Evaluation:</div>
+          <div style="font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 8px;">CLI and reproducing this dataset:</div>
           <div class="code-box">
-# Run full automated Pareto frontier sweep on local model
-quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3,bitnet --device cuda
+# Tensor-level SQNR and compression on a random weight matrix
+quantbench eval --shape 1024x1024
+
+# Re-measure the Pareto frontier on your own GPU (from a repo checkout, needs transformers)
+python scripts/measure_real_pareto.py --model Qwen/Qwen2.5-0.5B-Instruct
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
         </div>
@@ -1094,12 +1213,35 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       }}
     }}
 
+    // Formatting helpers
+    function fmtPctChange(v) {{
+      if (v >= 1000) return 'x' + Math.round(1 + v / 100).toLocaleString('en-US') + ' (collapsed)';
+      return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    }}
+    function fmtSqnr(v) {{
+      return v === null ? 'n/a (reference)' : v.toFixed(1) + ' dB';
+    }}
+
+    // Y value for the current metric (null = not plottable, e.g. SQNR of the unquantized baseline)
+    function yValue(d) {{
+      if (currentYMetric === 'sqnr_db') return d.sqnr_db;
+      return Math.log10(d.perplexity);
+    }}
+    const higherIsBetter = () => currentYMetric === 'sqnr_db';
+
+    // Non-dominated configs: no other config compresses at least as much AND has at least as good quality
+    function paretoFront(points) {{
+      return points.filter(p => !points.some(q => q !== p
+        && q.compression_ratio >= p.compression_ratio
+        && (higherIsBetter() ? yValue(q) >= yValue(p) : yValue(q) <= yValue(p))
+        && (q.compression_ratio > p.compression_ratio || yValue(q) !== yValue(p))));
+    }}
+
     // Metric Toggle for Pareto Plot
     function setPlotMetric(metric) {{
       currentYMetric = metric;
       document.getElementById('btn-y-sqnr').classList.toggle('active', metric === 'sqnr_db');
-      document.getElementById('btn-y-ppl').classList.toggle('active', metric === 'perplexity_delta');
-      document.getElementById('btn-y-recon').classList.toggle('active', metric === 'reconstruction_error');
+      document.getElementById('btn-y-ppl').classList.toggle('active', metric === 'perplexity');
       renderParetoPlot();
     }}
 
@@ -1108,6 +1250,12 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       document.getElementById('btn-x-comp').classList.toggle('active', metric === 'compression_ratio');
       document.getElementById('btn-x-bits').classList.toggle('active', metric === 'bits_per_weight');
       renderParetoPlot();
+    }}
+
+    function svgEl(tag, attrs) {{
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      return el;
     }}
 
     // Render Pareto SVG Scatter Plot
@@ -1119,67 +1267,47 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       svg.setAttribute('viewBox', `0 0 ${{w}} ${{h}}`);
       svg.innerHTML = '';
 
-      const padL = 75;
-      const padR = 40;
-      const padT = 40;
-      const padB = 60;
+      const padL = 75, padR = 40, padT = 40, padB = 60;
       const plotW = w - padL - padR;
       const plotH = h - padT - padB;
 
-      // Extract domains
-      let xVals = PARETO_DATA.map(d => d[currentXMetric]);
-      let yVals = PARETO_DATA.map(d => d[currentYMetric]);
+      const points = PARETO_DATA.filter(d => yValue(d) !== null);
+      const xVals = points.map(d => d[currentXMetric]);
+      const yVals = points.map(yValue);
 
-      let minX = Math.min(...xVals);
-      let maxX = Math.max(...xVals);
-      let minY = Math.min(...yVals);
-      let maxY = Math.max(...yVals);
+      let minX = Math.min(...xVals), maxX = Math.max(...xVals);
+      const xPad = (maxX - minX) * 0.08 || 1;
+      minX = Math.max(0, minX - xPad);
+      maxX = maxX + xPad;
 
+      let minY, maxY;
       if (currentYMetric === 'sqnr_db') {{
         minY = 0;
-        maxY = 105;
-      }} else if (currentYMetric === 'perplexity_delta') {{
-        minY = 0;
-        maxY = Math.max(...yVals) * 1.15;
-      }}
-
-      if (currentXMetric === 'compression_ratio') {{
-        minX = 0.8;
-        maxX = 8.0;
+        maxY = Math.ceil((Math.max(...yVals) + 5) / 10) * 10;
       }} else {{
-        minX = 1.5;
-        maxX = 17.0;
+        minY = Math.floor(Math.min(...yVals));
+        maxY = Math.ceil(Math.max(...yVals));
+        if (maxY === minY) maxY = minY + 1;
       }}
 
       const scaleX = v => padL + ((v - minX) / (maxX - minX)) * plotW;
       const scaleY = v => padT + plotH - ((v - minY) / (maxY - minY)) * plotH;
 
-      // Gridlines & Axis
-      const gridG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      gridG.setAttribute('stroke', '#1f293d');
-      gridG.setAttribute('stroke-width', '1');
+      const gridG = svgEl('g', {{ stroke: '#1f293d', 'stroke-width': '1' }});
+      const tickText = (x, y, anchor, txt) => {{
+        const t = svgEl('text', {{ x, y, fill: '#64748b', 'font-size': '11', 'font-family': 'JetBrains Mono', 'text-anchor': anchor }});
+        t.textContent = txt;
+        svg.appendChild(t);
+      }};
 
-      // Horizontal grid lines
-      const yTicks = 5;
+      // Horizontal grid lines (log axis for perplexity: one line per power of ten)
+      const yTicks = currentYMetric === 'sqnr_db' ? 5 : (maxY - minY);
       for (let i = 0; i <= yTicks; i++) {{
         const val = minY + (i / yTicks) * (maxY - minY);
         const yPos = scaleY(val);
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', padL);
-        line.setAttribute('x2', padL + plotW);
-        line.setAttribute('y1', yPos);
-        line.setAttribute('y2', yPos);
-        gridG.appendChild(line);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', padL - 12);
-        text.setAttribute('y', yPos + 4);
-        text.setAttribute('fill', '#64748b');
-        text.setAttribute('font-size', '11');
-        text.setAttribute('font-family', 'JetBrains Mono');
-        text.setAttribute('text-anchor', 'end');
-        text.textContent = val.toFixed(currentYMetric === 'sqnr_db' ? 0 : 3);
-        svg.appendChild(text);
+        gridG.appendChild(svgEl('line', {{ x1: padL, x2: padL + plotW, y1: yPos, y2: yPos }}));
+        const label = currentYMetric === 'sqnr_db' ? val.toFixed(0) : Number(Math.pow(10, val).toPrecision(2)).toLocaleString('en-US', {{ notation: 'compact' }});
+        tickText(padL - 12, yPos + 4, 'end', label);
       }}
 
       // Vertical grid lines
@@ -1187,117 +1315,61 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       for (let i = 0; i <= xTicks; i++) {{
         const val = minX + (i / xTicks) * (maxX - minX);
         const xPos = scaleX(val);
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', xPos);
-        line.setAttribute('x2', xPos);
-        line.setAttribute('y1', padT);
-        line.setAttribute('y2', padT + plotH);
-        gridG.appendChild(line);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', xPos);
-        text.setAttribute('y', padT + plotH + 20);
-        text.setAttribute('fill', '#64748b');
-        text.setAttribute('font-size', '11');
-        text.setAttribute('font-family', 'JetBrains Mono');
-        text.setAttribute('text-anchor', 'middle');
-        text.textContent = val.toFixed(1) + (currentXMetric === 'compression_ratio' ? 'x' : 'b');
-        svg.appendChild(text);
+        gridG.appendChild(svgEl('line', {{ x1: xPos, x2: xPos, y1: padT, y2: padT + plotH }}));
+        tickText(xPos, padT + plotH + 20, 'middle', val.toFixed(1) + (currentXMetric === 'compression_ratio' ? 'x' : 'b'));
       }}
       svg.appendChild(gridG);
 
-      // Axis Labels
-      const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      xLabel.setAttribute('x', padL + plotW / 2);
-      xLabel.setAttribute('y', padT + plotH + 46);
-      xLabel.setAttribute('fill', '#94a3b8');
-      xLabel.setAttribute('font-size', '12');
-      xLabel.setAttribute('font-weight', '600');
-      xLabel.setAttribute('text-anchor', 'middle');
-      xLabel.textContent = currentXMetric === 'compression_ratio' ? 'Compression Ratio (Higher = Less Memory)' : 'Bits per Weight (Lower = More Compressed)';
+      const xLabel = svgEl('text', {{ x: padL + plotW / 2, y: padT + plotH + 46, fill: '#94a3b8', 'font-size': '12', 'font-weight': '600', 'text-anchor': 'middle' }});
+      xLabel.textContent = currentXMetric === 'compression_ratio' ? 'Linear-layer compression vs BF16 (higher = less memory)' : 'Stored bits per weight (lower = more compressed)';
       svg.appendChild(xLabel);
 
-      const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      yLabel.setAttribute('x', -(padT + plotH / 2));
-      yLabel.setAttribute('y', 22);
-      yLabel.setAttribute('transform', 'rotate(-90)');
-      yLabel.setAttribute('fill', '#94a3b8');
-      yLabel.setAttribute('font-size', '12');
-      yLabel.setAttribute('font-weight', '600');
-      yLabel.setAttribute('text-anchor', 'middle');
-      yLabel.textContent = currentYMetric === 'sqnr_db' ? 'Signal-to-Quantization-Noise Ratio (SQNR dB, Higher = Better Quality)' : (currentYMetric === 'perplexity_delta' ? 'Perplexity Delta ΔPPL (Lower = Better)' : 'L2 Reconstruction Error (Lower = Better)');
+      const yLabel = svgEl('text', {{ x: -(padT + plotH / 2), y: 22, transform: 'rotate(-90)', fill: '#94a3b8', 'font-size': '12', 'font-weight': '600', 'text-anchor': 'middle' }});
+      yLabel.textContent = currentYMetric === 'sqnr_db' ? 'Weight SQNR in dB (higher = closer to original)' : 'Perplexity, log scale (lower = better)';
       svg.appendChild(yLabel);
 
-      // Pareto Optimal Frontier Curve (if SQNR)
-      if (currentYMetric === 'sqnr_db' && currentXMetric === 'compression_ratio') {{
-        // Filter Pareto dominant points
-        const paretoPoints = [
-          PARETO_DATA.find(d => d.scheme === 'fp16'),
-          PARETO_DATA.find(d => d.scheme === 'smoothquant'),
-          PARETO_DATA.find(d => d.scheme === 'gptq'),
-          PARETO_DATA.find(d => d.scheme === 'awq'),
-          PARETO_DATA.find(d => d.scheme === 'ternary')
-        ].filter(Boolean);
-
-        paretoPoints.sort((a, b) => a.compression_ratio - b.compression_ratio);
-
-        let pathD = `M ${{scaleX(paretoPoints[0].compression_ratio)}} ${{scaleY(paretoPoints[0].sqnr_db)}}`;
-        for (let i = 1; i < paretoPoints.length; i++) {{
-          pathD += ` L ${{scaleX(paretoPoints[i].compression_ratio)}} ${{scaleY(paretoPoints[i].sqnr_db)}}`;
-        }}
-
-        const paretoPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        paretoPath.setAttribute('d', pathD);
-        paretoPath.setAttribute('fill', 'none');
-        paretoPath.setAttribute('stroke', 'rgba(16, 185, 129, 0.4)');
-        paretoPath.setAttribute('stroke-width', '2');
-        paretoPath.setAttribute('stroke-dasharray', '4,4');
-        svg.appendChild(paretoPath);
+      // Pareto frontier computed from the measured points
+      const front = paretoFront(points).sort((a, b) => scaleX(a[currentXMetric]) - scaleX(b[currentXMetric]));
+      if (front.length > 1) {{
+        const pathD = front.map((d, i) => `${{i ? 'L' : 'M'}} ${{scaleX(d[currentXMetric])}} ${{scaleY(yValue(d))}}`).join(' ');
+        svg.appendChild(svgEl('path', {{ d: pathD, fill: 'none', stroke: 'rgba(16, 185, 129, 0.4)', 'stroke-width': '2', 'stroke-dasharray': '4,4' }}));
       }}
 
-      // Plot Points
       const tooltip = document.getElementById('plot-tooltip');
+      const placedLabels = [];
 
-      PARETO_DATA.forEach(d => {{
+      points.forEach(d => {{
         const cx = scaleX(d[currentXMetric]);
-        const cy = scaleY(d[currentYMetric]);
+        const cy = scaleY(yValue(d));
 
         let col = '#10b981';
-        if (d.scheme.includes('fp16')) col = '#94a3b8';
-        else if (d.scheme.includes('int8') || d.scheme.includes('smoothquant')) col = '#10b981';
-        else if (d.scheme.includes('fp8')) col = '#06b6d4';
-        else if (d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq')) col = '#f59e0b';
+        if (d.scheme === 'bf16') col = '#94a3b8';
+        else if (d.scheme.includes('int8')) col = '#10b981';
+        else if (d.scheme.includes('int4')) col = '#f59e0b';
         else if (d.scheme.includes('ternary')) col = '#f43f5e';
         else if (d.scheme.includes('sparse')) col = '#8b5cf6';
 
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', cx);
-        circle.setAttribute('cy', cy);
-        circle.setAttribute('r', '7');
-        circle.setAttribute('fill', col);
-        circle.setAttribute('stroke', '#0b0f19');
-        circle.setAttribute('stroke-width', '2');
+        const circle = svgEl('circle', {{ cx, cy, r: '7', fill: col, stroke: '#0b0f19', 'stroke-width': '2' }});
         circle.style.cursor = 'pointer';
         circle.style.transition = 'all 0.15s ease';
 
         circle.addEventListener('mouseenter', (e) => {{
           circle.setAttribute('r', '11');
           circle.setAttribute('stroke', '#fff');
-
           tooltip.style.display = 'block';
+          const saved = d.memory_savings_pct;
           tooltip.innerHTML = `
             <div class="plot-tooltip-title">${{d.configuration}}</div>
-            <div><strong>Compression:</strong> ${{d.compression_ratio.toFixed(2)}}x (${{d.bits_per_weight}} bits/wt)</div>
-            <div><strong>SQNR:</strong> ${{d.sqnr_db.toFixed(1)}} dB</div>
-            <div><strong>Δ PPL:</strong> +${{d.perplexity_delta.toFixed(3)}}</div>
-            <div><strong>VRAM Footprint:</strong> ${{d.memory_footprint_mb}} MB (-${{d.memory_savings_pct}}%)</div>
-            <div style="margin-top:6px; color:#cbd5e1; font-size:11px;">${{d.hardware_acceleration}}</div>
+            <div><strong>Linear layers:</strong> ${{d.compression_ratio.toFixed(2)}}x (${{d.bits_per_weight}} bits/wt)</div>
+            <div><strong>Whole model:</strong> ${{d.model_compression.toFixed(2)}}x, ${{d.memory_footprint_mb}} MB (${{saved >= 0 ? '-' : '+'}}${{Math.abs(saved)}}%)</div>
+            <div><strong>Weight SQNR:</strong> ${{fmtSqnr(d.sqnr_db)}}</div>
+            <div><strong>Perplexity:</strong> ${{d.perplexity.toLocaleString('en-US', {{ maximumFractionDigits: 3 }})}} (${{fmtPctChange(d.perplexity_delta_pct)}})</div>
+            <div style="margin-top:6px; color:#cbd5e1; font-size:11px;">Decode ${{d.decode_speed_vs_bf16.toFixed(2)}}x BF16 (${{d.decode_tok_s}} tok/s, reference runtime)</div>
           `;
-
           const rect = box.getBoundingClientRect();
           let tx = e.clientX - rect.left + 15;
-          let ty = e.clientY - rect.top - 20;
-          if (tx + 260 > w) tx = e.clientX - rect.left - 260;
+          const ty = e.clientY - rect.top - 20;
+          if (tx + 280 > w) tx = e.clientX - rect.left - 280;
           tooltip.style.left = tx + 'px';
           tooltip.style.top = ty + 'px';
         }});
@@ -1308,22 +1380,27 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
           tooltip.style.display = 'none';
         }});
 
-        circle.addEventListener('click', () => {{
-          highlightTableRow(d.configuration);
-        }});
-
+        circle.addEventListener('click', () => highlightTableRow(d.configuration));
         svg.appendChild(circle);
 
-        // Dot label
-        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        txt.setAttribute('x', cx + 9);
-        txt.setAttribute('y', cy + 4);
-        txt.setAttribute('fill', '#94a3b8');
-        txt.setAttribute('font-size', '10');
-        txt.setAttribute('font-family', 'Inter');
-        txt.textContent = d.scheme.toUpperCase();
+        // Nudge labels down until they clear other dots and the labels already drawn
+        let ly = cy + 4;
+        const clashes = () =>
+          placedLabels.some(p => Math.abs(p.x - cx) < 70 && Math.abs(p.y - ly) < 12)
+          || points.some(q => q !== d && scaleX(q[currentXMetric]) - cx > 0 && scaleX(q[currentXMetric]) - cx < 70
+                              && Math.abs(scaleY(yValue(q)) + 4 - ly) < 12);
+        while (clashes()) ly += 12;
+        placedLabels.push({{ x: cx, y: ly }});
+        const txt = svgEl('text', {{ x: cx + 9, y: ly, fill: '#94a3b8', 'font-size': '10', 'font-family': 'Inter' }});
+        txt.textContent = d.label;
         svg.appendChild(txt);
       }});
+
+      if (points.length < PARETO_DATA.length) {{
+        const note = svgEl('text', {{ x: padL + plotW, y: padT - 14, fill: '#64748b', 'font-size': '11', 'text-anchor': 'end' }});
+        note.textContent = 'BF16 baseline not shown: SQNR is undefined for unquantized weights';
+        svg.appendChild(note);
+      }}
     }}
 
     // Table Rendering & Sorting
@@ -1331,9 +1408,9 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       const tbody = document.getElementById('pareto-tbody');
       tbody.innerHTML = '';
 
-      let filtered = PARETO_DATA.filter(d => {{
-        if (currentFilter === 'int8') return d.scheme.includes('int8') || d.scheme.includes('fp8') || d.scheme.includes('smoothquant');
-        if (currentFilter === 'int4') return d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq');
+      const filtered = PARETO_DATA.filter(d => {{
+        if (currentFilter === 'int8') return d.scheme.includes('int8');
+        if (currentFilter === 'int4') return d.scheme.includes('int4');
         if (currentFilter === 'subbyte') return d.scheme.includes('ternary') || d.scheme.includes('sparse');
         return true;
       }});
@@ -1342,14 +1419,15 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
         let vA = a[currentSortCol];
         let vB = b[currentSortCol];
         if (typeof vA === 'string') return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        if (vA === null) vA = Infinity;  // unquantized baseline: SQNR is unbounded
+        if (vB === null) vB = Infinity;
         return sortAsc ? vA - vB : vB - vA;
       }});
 
       filtered.forEach(d => {{
         let badgeClass = 'badge-fp16';
-        if (d.scheme.includes('int8') || d.scheme.includes('smoothquant')) badgeClass = 'badge-int8';
-        else if (d.scheme.includes('fp8')) badgeClass = 'badge-fp8';
-        else if (d.scheme.includes('int4') || d.scheme.includes('awq') || d.scheme.includes('gptq')) badgeClass = 'badge-int4';
+        if (d.scheme.includes('int8')) badgeClass = 'badge-int8';
+        else if (d.scheme.includes('int4')) badgeClass = 'badge-int4';
         else if (d.scheme.includes('ternary')) badgeClass = 'badge-ternary';
         else if (d.scheme.includes('sparse')) badgeClass = 'badge-sparse';
 
@@ -1360,13 +1438,12 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
             <strong>${{d.configuration}}</strong>
             <span class="badge ${{badgeClass}}" style="margin-left: 6px;">${{d.scheme}}</span>
           </td>
-          <td style="font-family:var(--font-mono);">${{d.bits_per_weight.toFixed(1)}}</td>
+          <td style="font-family:var(--font-mono);">${{d.bits_per_weight.toFixed(2)}}</td>
           <td style="font-family:var(--font-mono); font-weight:700; color:var(--accent);">${{d.compression_ratio.toFixed(2)}}x</td>
           <td style="font-family:var(--font-mono);">${{d.memory_footprint_mb}} MB</td>
-          <td style="font-family:var(--font-mono); font-weight:700;">${{d.sqnr_db.toFixed(1)}} dB</td>
-          <td style="font-family:var(--font-mono); color:${{d.perplexity_delta > 0.1 ? 'var(--rose)' : 'var(--text-main)'}};">+${{d.perplexity_delta.toFixed(3)}}</td>
-          <td style="font-size:12px; color:var(--text-muted);">${{d.hardware_acceleration}}</td>
-          <td style="font-size:12px; color:var(--text-muted);">${{d.primary_use_case}}</td>
+          <td style="font-family:var(--font-mono); font-weight:700;">${{fmtSqnr(d.sqnr_db)}}</td>
+          <td style="font-family:var(--font-mono); color:${{d.perplexity_delta_pct > 5 ? 'var(--rose)' : 'var(--text-main)'}};">${{fmtPctChange(d.perplexity_delta_pct)}}</td>
+          <td style="font-family:var(--font-mono);">${{d.decode_speed_vs_bf16.toFixed(2)}}x</td>
         `;
         tbody.appendChild(tr);
       }});
@@ -1374,12 +1451,8 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
 
     function filterTable(cat) {{
       currentFilter = cat;
-      document.querySelectorAll('#tab-pareto .control-group button').forEach(b => {{
-        if (b.innerText.toLowerCase().includes(cat) || (cat === 'all' && b.innerText.includes('All'))) {{
-          b.classList.add('active');
-        }} else if (b.innerText.includes('INT8') || b.innerText.includes('INT4') || b.innerText.includes('BitNet') || b.innerText.includes('All')) {{
-          b.classList.remove('active');
-        }}
+      document.querySelectorAll('#table-filters button').forEach(b => {{
+        b.classList.toggle('active', b.dataset.filter === cat);
       }});
       renderTable();
     }}
@@ -1627,14 +1700,13 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
     // ==========================================
     // TAB 3: LAYER SENSITIVITY SIMULATOR
     // ==========================================
-    let currentLayerScheme = 'INT8 AbsMax';
+    let currentLayerScheme = {first_layer_scheme};
 
     function setLayerScheme(scheme) {{
       currentLayerScheme = scheme;
-      document.getElementById('btn-ls-int8').classList.toggle('active', scheme === 'INT8 AbsMax');
-      document.getElementById('btn-ls-int4').classList.toggle('active', scheme === 'INT4 Blockwise (G=128)');
-      document.getElementById('btn-ls-awq').classList.toggle('active', scheme === 'INT4 AWQ');
-      document.getElementById('btn-ls-bitnet').classList.toggle('active', scheme === 'BitNet 1.58b');
+      document.querySelectorAll('#layer-scheme-buttons button').forEach(b => {{
+        b.classList.toggle('active', b.dataset.scheme === scheme);
+      }});
       renderLayerBars();
     }}
 
@@ -1643,30 +1715,32 @@ quantbench eval --model meta-llama/Llama-3.2-1B --schemes int8,int4_awq,fp8_e4m3
       container.innerHTML = '';
 
       const rows = LAYER_DATA.filter(d => d.quantization_scheme === currentLayerScheme);
+      // Scale bars to the worst layer, but never below the 2% "Low" band so noise-level changes stay short
+      const worst = Math.max(...rows.map(d => Math.abs(d.perplexity_delta_pct)), 2);
 
       rows.forEach(d => {{
         const row = document.createElement('div');
         row.className = 'layer-bar-row';
 
         let tierColor = 'var(--accent)';
-        if (d.sensitivity_tier === 'Critical') tierColor = 'var(--rose)';
-        else if (d.sensitivity_tier === 'Moderate') tierColor = 'var(--amber)';
+        if (d.impact_tier === 'High') tierColor = 'var(--rose)';
+        else if (d.impact_tier === 'Moderate') tierColor = 'var(--amber)';
 
-        const pct = Math.max(5, Math.min(100, (d.layer_sqnr_db / 45) * 100));
+        const pct = Math.max(2, (Math.abs(d.perplexity_delta_pct) / worst) * 100);
 
         row.innerHTML = `
           <div class="layer-info">
             <span class="layer-name">
-              <span class="badge" style="background:${{tierColor}}22; color:${{tierColor}}; border:1px solid ${{tierColor}}44;">${{d.sensitivity_tier}}</span>
+              <span class="badge" style="background:${{tierColor}}22; color:${{tierColor}}; border:1px solid ${{tierColor}}44;">${{d.impact_tier}}</span>
               ${{d.layer_component}}
             </span>
-            <span class="layer-metric">${{d.layer_sqnr_db.toFixed(1)}} dB</span>
+            <span class="layer-metric">${{fmtPctChange(d.perplexity_delta_pct)}}</span>
           </div>
           <div class="progress-track">
             <div class="progress-fill" style="width: ${{pct}}%; background: ${{tierColor}};"></div>
           </div>
           <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
-            ${{d.engineering_guidance}}
+            Weight SQNR ${{d.weight_sqnr_db.toFixed(1)}} dB across ${{d.layers_quantized}} layers
           </div>
         `;
         container.appendChild(row);
@@ -1806,18 +1880,20 @@ def main():
 
     if not pareto_json_path.exists() or not layer_json_path.exists():
         raise FileNotFoundError(
-            "Dataset JSON files not found. Run generate_pareto_dataset.py first!"
+            "Dataset JSON files not found. Run scripts/measure_real_pareto.py first!"
         )
 
     pareto_data = json.loads(pareto_json_path.read_text(encoding="utf-8"))
     layer_data = json.loads(layer_json_path.read_text(encoding="utf-8"))
+    meta_path = root / "hf_dataset" / "run_metadata.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
 
     print(
         f"Loaded {len(pareto_data)} Pareto configurations and {len(layer_data)} layer sensitivity entries."
     )
 
     # 2. Generate HTML
-    html_content = generate_html(pareto_data, layer_data)
+    html_content = generate_html(pareto_data, layer_data, meta)
 
     # 3. Write to Hugging Face Space directory
     space_dir = root / "hf_space"
@@ -1828,25 +1904,57 @@ def main():
 
     # Space README.md
     space_readme = r"""---
-title: QuantBench - LLM Sub-Byte Quantization Studio
+title: QuantBench - Sub-Byte LLM Quantization Studio
 emoji: 🔬
 colorFrom: green
 colorTo: blue
 sdk: static
 pinned: false
 license: apache-2.0
-short_description: LLM quantization Pareto frontier & sub-byte bit-packer.
+short_description: Sub-byte quantization Pareto frontier & BitNet packer.
+tags:
+  - quantization
+  - bitnet
+  - int4
+  - sparsity
+  - sqnr
+  - pareto-frontier
+  - llm-compression
+  - transformer
+datasets:
+  - prajwalpujari16/quantbench-pareto
+models:
+  - Qwen/Qwen2.5-0.5B-Instruct
 ---
 
 # QuantBench 🔬 LLM Sub-Byte Quantization & Pareto Frontier Studio
 
-Interactive pre-flight analytical quantization exploration, BitNet 1.58b ternary sub-byte bitshift registers, Ampere 2:4 structured sparsity visualizer, and Transformer layer sensitivity analyzer.
+Measured quality-vs-compression results for INT8, INT4, 2:4 sparsity and post-hoc ternary quantization
+(one model, one GPU, one run; see the dataset card for the setup and caveats), plus interactive
+visualizers for ternary, INT4 and 2:4 bit-packing and a live SQNR calculator for your own tensors.
 
 * **GitHub Repository:** [Prajwal7-2002/quantbench](https://github.com/Prajwal7-2002/quantbench)
-* **PyPI:** [`pip install quantbench`](https://pypi.org/project/quantbench/)
+* **PyPI:** [`pip install quantbench-engine`](https://pypi.org/project/quantbench-engine/)
 * **HF Benchmark Dataset:** [prajwalpujari16/quantbench-pareto](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)
 * **Documentation:** [prajwal7-2002.github.io/quantbench](https://prajwal7-2002.github.io/quantbench/)
 * **Author:** Prajwal Pujari ([@Prajwal7-2002](https://github.com/Prajwal7-2002))
+
+---
+
+### Citation & Attribution
+
+If you use QuantBench or its measured quantization Pareto dataset, please cite:
+
+```bibtex
+@misc{pujari2026quantbench,
+  author = {Pujari, Prajwal},
+  title = {QuantBench: Sub-Byte LLM Quantization and Quality-Compression Pareto Benchmark},
+  year = {2026},
+  publisher = {Hugging Face},
+  howpublished = {\url{https://huggingface.co/spaces/prajwalpujari16/quantbench}},
+  url = {https://github.com/Prajwal7-2002/quantbench}
+}
+```
 """
     (space_dir / "README.md").write_text(space_readme, encoding="utf-8")
     print(f"✓ Wrote {space_dir / 'README.md'}")

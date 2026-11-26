@@ -20,33 +20,33 @@ datasets:
   - prajwalpujari16/quantbench-pareto
 models:
   - Qwen/Qwen2.5-0.5B-Instruct
-  - meta-llama/Llama-3.1-8B
 ---
 
-# QuantBench 🔬 LLM Sub-Byte Quantization Studio
+# QuantBench 🔬 LLM Sub-Byte Quantization & Pareto Frontier Studio
 
-Interactive pre-flight analytical quantization exploration, BitNet 1.58b ternary bit-packing registers, and layer sensitivity simulator.
+Measured quality-vs-compression results for INT8, INT4, 2:4 sparsity and post-hoc ternary quantization
+(one model, one GPU, one run; see the dataset card for the setup and caveats), plus interactive
+visualizers for ternary, INT4 and 2:4 bit-packing and a live SQNR calculator for your own tensors.
 
-* **Interactive Features:** SQNR-vs-compression Pareto frontier explorer, live BitNet 1.58b / INT4 / 2:4 sparsity bit-packing registers, and Transformer layer sensitivity simulator.
 * **GitHub Repository:** [Prajwal7-2002/quantbench](https://github.com/Prajwal7-2002/quantbench)
-* **Dataset:** [prajwalpujari16/quantbench-pareto](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)
-* **PyPI:** [`pip install quantbench`](https://pypi.org/project/quantbench/)
+* **PyPI:** [`pip install quantbench-engine`](https://pypi.org/project/quantbench-engine/)
+* **HF Benchmark Dataset:** [prajwalpujari16/quantbench-pareto](https://huggingface.co/datasets/prajwalpujari16/quantbench-pareto)
+* **Documentation:** [prajwal7-2002.github.io/quantbench](https://prajwal7-2002.github.io/quantbench/)
 * **Author:** Prajwal Pujari ([@Prajwal7-2002](https://github.com/Prajwal7-2002))
 
 ---
 
 ### Citation & Attribution
 
-If you use QuantBench or its empirical quantization Pareto dataset in your research, compression pipelines, or publications, please cite:
+If you use QuantBench or its measured quantization Pareto dataset, please cite:
 
 ```bibtex
-@misc{pujari2024quantbench,
+@misc{pujari2026quantbench,
   author = {Pujari, Prajwal},
   title = {QuantBench: Sub-Byte LLM Quantization and Quality-Compression Pareto Benchmark},
-  year = {2024},
+  year = {2026},
   publisher = {Hugging Face},
   howpublished = {\url{https://huggingface.co/spaces/prajwalpujari16/quantbench}},
   url = {https://github.com/Prajwal7-2002/quantbench}
 }
 ```
-

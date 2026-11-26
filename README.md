@@ -16,9 +16,9 @@ A **unified, first-principles quantization engine, bit-packing runtime, 2:4 spar
 
 Most developers treat LLM quantization as a black box: they download GGUF or AWQ checkpoints without knowing how scales and zero-points are calculated, how 4-bit signed integers are packed into memory bytes, or why activation outliers in attention layers make naive INT8 quantization collapse.
 
-`quantbench` implements these production algorithms from scratch with **radical transparency and zero compiled C++/CUDA dependencies**, and provides a benchmark CLI that measures empirical perplexity degradation alongside generation throughput.
+`quantbench` implements these production algorithms from scratch with **radical transparency and zero compiled C++/CUDA dependencies**, and provides a benchmark CLI plus a real-model script (`scripts/measure_real_pareto.py`) that measure perplexity change alongside generation speed.
 
-> 🌐 **Interactive Web Studio Live:** Explore the quality-vs-compression Pareto frontier, simulate BitNet 1.58b / INT4 bit-packing registers, and assess Transformer layer sensitivity directly in your browser with zero cold start: [**huggingface.co/spaces/prajwalpujari16/quantbench**](https://huggingface.co/spaces/prajwalpujari16/quantbench)
+> 🌐 **Interactive Web Studio Live:** Explore the measured quality-vs-compression Pareto frontier, simulate BitNet 1.58b / INT4 bit-packing registers, and assess Transformer layer sensitivity directly in your browser with zero cold start: [**huggingface.co/spaces/prajwalpujari16/quantbench**](https://huggingface.co/spaces/prajwalpujari16/quantbench)
 
 ---
 
